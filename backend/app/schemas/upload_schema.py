@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.schemas.dataset_schema import DatasetSession
+
 
 class FileWarning(BaseModel):
     """
@@ -13,9 +15,9 @@ class FileWarning(BaseModel):
     details: dict = Field(default_factory=dict)
 
 
-class FileReadinessReport(BaseModel):
+class ReadinessReport(BaseModel):
     """
-    First readiness analysis report for an uploaded file.
+    Readiness report generated for an uploaded file.
     """
 
     readiness_score: int
@@ -29,7 +31,8 @@ class FileReadinessReport(BaseModel):
 
 class UploadResponse(BaseModel):
     """
-    Response returned after a file is uploaded, saved, classified, and inspected.
+    Response returned after a file is uploaded, saved, classified, inspected,
+    checked for warnings, and attached to a dataset session.
     """
 
     status: str
@@ -45,5 +48,8 @@ class UploadResponse(BaseModel):
     reason: str
     gis_metadata: dict | None
     warnings: list[FileWarning]
-    readiness_report: FileReadinessReport
+    readiness_report: ReadinessReport
+    dataset_session_id: str
+    dataset_session: DatasetSession
 
+    

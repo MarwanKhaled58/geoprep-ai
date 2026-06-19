@@ -6,6 +6,7 @@ function FileUpload() {
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [error, setError] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
+const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0] ?? null;
@@ -25,7 +26,12 @@ function FileUpload() {
       setError("");
       setUploadResult(null);
 
-      const result = await uploadFile(selectedFile);
+      const result = await uploadFile(selectedFile, datasetSessionId);
+
+if (result.dataset_session_id) {
+  setDatasetSessionId(result.dataset_session_id);
+}
+
       setUploadResult(result);
     } catch (err) {
       setUploadResult(null);
@@ -163,6 +169,41 @@ function FileUpload() {
 
           {uploadResult.gis_metadata && (
             <div className="card full-width-card">
+              {uploadResult.dataset_session && (
+  <div className="card">
+    <h3>Dataset Session</h3>
+
+    <div className="info-grid">
+      <InfoItem
+        label="Session ID"
+        value={uploadResult.dataset_session.dataset_session_id}
+      />
+      <InfoItem label="Name" value={uploadResult.dataset_session.name} />
+      <InfoItem
+        label="File count"
+        value={String(uploadResult.dataset_session.file_count)}
+      />
+      <InfoItem
+        label="Updated at"
+        value={uploadResult.dataset_session.updated_at}
+      />
+    </div>
+
+    <h4>Files in Session</h4>
+
+    <ul>
+      {uploadResult.dataset_session.files.map((file, index) => (
+        <li key={`${file.saved_filename}-${index}`}>
+          <strong>{file.original_filename}</strong> — {file.file_category} —{" "}
+          {file.readiness_status ?? "unknown"}{" "}
+          {file.readiness_score !== null && file.readiness_score !== undefined
+            ? `(${file.readiness_score}/100)`
+            : ""}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
               <h3>GIS Metadata</h3>
               <pre className="metadata-box">
                 {JSON.stringify(uploadResult.gis_metadata, null, 2)}

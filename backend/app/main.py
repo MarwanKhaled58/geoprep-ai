@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes.upload import router as upload_router
 
+from app.api.routes.dataset import router as dataset_router
 from app.api.routes.health import router as health_router
+from app.api.routes.upload import router as upload_router
 from app.core.config import ALLOWED_ORIGINS, APP_NAME, APP_VERSION
 
 app = FastAPI(
@@ -20,12 +21,5 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(upload_router)
+app.include_router(dataset_router)
 
-
-@app.get("/")
-def root() -> dict:
-    return {
-        "message": "Welcome to GeoPrep AI API",
-        "docs": "/docs",
-        "health": "/api/health",
-    }
