@@ -18,6 +18,18 @@ export type ReadinessReport = {
   can_continue_to_dataset: boolean;
 };
 
+export type DatasetReadinessSummary = {
+  readiness_score: number;
+  status: string;
+  summary: string;
+  issues: string[];
+  recommended_actions: string[];
+  raster_count: number;
+  vector_count: number;
+  supporting_file_count: number;
+  unsupported_file_count: number;
+};
+
 export type DatasetFileSummary = {
   original_filename: string;
   saved_filename: string;
@@ -34,6 +46,7 @@ export type DatasetSession = {
   updated_at: string;
   file_count: number;
   files: DatasetFileSummary[];
+  readiness_summary: DatasetReadinessSummary | null;
 };
 
 export type UploadResponse = {
@@ -78,3 +91,4 @@ export async function uploadFile(
 
   return response.json();
 }
+
