@@ -1,23 +1,30 @@
-.status-ready,
-.status-ready_for_alignment_check {
-  background: #dcfce7;
-  color: #166534;
+.file-results-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
 }
 
-.status-partially_ready,
-.status-supporting_file,
-.status-supporting_files_only,
-.status-limited,
-.status-vector_only,
-.status-raster_only {
-  background: #fef3c7;
-  color: #92400e;
+.file-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
 }
 
-.status-not_ready,
-.status-inspection_failed,
-.status-empty,
-.status-needs_cleanup {
-  background: #fee2e2;
-  color: #991b1b;
+.file-results-table th,
+.file-results-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e5eaf2;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.file-results-table th {
+  color: #475569;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f8fafc;
+}
+
+.file-results-table tr:hover td {
+  background: #f8fafc;
 }

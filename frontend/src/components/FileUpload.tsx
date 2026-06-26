@@ -63,6 +63,8 @@ function FileUpload() {
     }
   }
 
+  const allUploadResults = batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
+
   const warnings = uploadResult?.warnings ?? [];
   const readinessReport = uploadResult?.readiness_report;
   const datasetSession =
@@ -122,6 +124,65 @@ function FileUpload() {
               label="Dataset status"
               value={batchResult.dataset_session.readiness_summary?.status ?? "unknown"}
             />
+          </div>
+        </div>
+      )}
+
+      {allUploadResults.length > 0 && (
+        <div className="card full-width-card">
+          <h3>Uploaded File Results</h3>
+
+          <div className="file-results-table-wrapper">
+            <table className="file-results-table">
+              <thead>
+                <tr>
+                  <th>Filename</th>
+                  <th>Category</th>
+                  <th>GIS Type</th>
+                  <th>Readiness</th>
+                  <th>Status</th>
+                  <th>Warnings</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {allUploadResults.map((result) => {
+                  const gisType =
+                    typeof result.gis_metadata?.gis_type === "string"
+                      ? result.gis_metadata.gis_type
+                      : "non-gis";
+
+                  const readinessScore =
+                    result.readiness_report?.readiness_score ?? null;
+
+                  const readinessStatus =
+                    result.readiness_report?.status ?? "unknown";
+
+                  const warningCount = result.warnings?.length ?? 0;
+
+                  return (
+                    <tr key={result.saved_filename}>
+                      <td>
+                        <strong>{result.original_filename}</strong>
+                      </td>
+                      <td>{result.file_category}</td>
+                      <td>{gisType}</td>
+                      <td>
+                        {readinessScore !== null
+                          ? `${readinessScore}/100`
+                          : "N/A"}
+                      </td>
+                      <td>
+                        <span className={`status-pill status-${readinessStatus}`}>
+                          {readinessStatus}
+                        </span>
+                      </td>
+                      <td>{warningCount}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
