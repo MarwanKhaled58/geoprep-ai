@@ -99,8 +99,15 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     """
     Generate a dataset-level readiness summary from file summaries.
 
-    This is intentionally simple in v1.
-    It does not yet compare CRS, detect relationships, or infer model tasks.
+    V1 composition rules:
+    - supporting files only
+    - vector only
+    - raster only
+    - raster + vector
+    - mixed spatial + supporting
+    - unsupported files present
+
+    This does not yet compare CRS, bounds, resolution, or spatial alignment.
     """
 
     if not files:
@@ -113,7 +120,9 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         [file for file in files if not file.get("is_supported", False)]
     )
 
-    supporting_file_count = len(files) - raster_count - vector_count - unsupported_file_count
+    supporting_file_count = (
+        len(files) - raster_count - vector_count - unsupported_file_count
+    )
 
     valid_scores = [
         file.get("readiness_score")
@@ -123,46 +132,44 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 
     average_score = int(sum(valid_scores) / len(valid_scores)) if valid_scores else 0
 
-    issues: list[str] = []
-    recommended_actions: list[str] = []
+    composition = _detect_dataset_composition(
+        raster_count=raster_count,
+        vector_count=vector_count,
+        supporting_file_count=supporting_file_count,
+        unsupported_file_count=unsupported_file_count,
+    )
 
-    if unsupported_file_count > 0:
-        issues.append("Dataset contains unsupported files.")
-        recommended_actions.append(
-            "Remove unsupported files or replace them with supported dataset files."
-        )
+    issues = _build_composition_issues(
+        composition=composition,
+        raster_count=raster_count,
+        vector_count=vector_count,
+        supporting_file_count=supporting_file_count,
+        unsupported_file_count=unsupported_file_count,
+    )
 
-    if raster_count == 0:
-        issues.append("Dataset does not contain raster imagery.")
-        recommended_actions.append(
-            "Upload raster imagery if the dataset is intended for remote sensing, segmentation, or classification workflows."
-        )
-
-    if vector_count == 0:
-        issues.append("Dataset does not contain vector GIS data.")
-        recommended_actions.append(
-            "Upload vector data if the dataset needs labels, boundaries, annotations, or GIS feature layers."
-        )
-
-    if raster_count > 0 and vector_count > 0:
-        recommended_actions.append(
-            "Next step should compare raster and vector CRS, bounds, and spatial alignment."
-        )
-
-    if supporting_file_count > 0:
-        recommended_actions.append(
-            "Keep supporting files as metadata or documentation, but do not treat them as spatial training data."
-        )
+    recommended_actions = _build_composition_recommended_actions(
+        composition=composition,
+        raster_count=raster_count,
+        vector_count=vector_count,
+        supporting_file_count=supporting_file_count,
+        unsupported_file_count=unsupported_file_count,
+    )
 
     status = _resolve_dataset_status(
         average_score=average_score,
-        raster_count=raster_count,
-        vector_count=vector_count,
+        composition=composition,
+        unsupported_file_count=unsupported_file_count,
+    )
+
+    adjusted_score = _adjust_dataset_score_for_composition(
+        average_score=average_score,
+        composition=composition,
         unsupported_file_count=unsupported_file_count,
     )
 
     summary = _build_dataset_summary(
         status=status,
+        composition=composition,
         file_count=len(files),
         raster_count=raster_count,
         vector_count=vector_count,
@@ -170,13 +177,8 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         unsupported_file_count=unsupported_file_count,
     )
 
-    if not recommended_actions:
-        recommended_actions.append(
-            "Dataset looks ready for the current inspection stage."
-        )
-
     return {
-        "readiness_score": average_score,
+        "readiness_score": adjusted_score,
         "status": status,
         "summary": summary,
         "issues": issues,
@@ -214,24 +216,173 @@ def _count_files_by_category(files: list[dict], category: str) -> int:
     return len([file for file in files if file.get("file_category") == category])
 
 
-def _resolve_dataset_status(
-    average_score: int,
+def _detect_dataset_composition(
     raster_count: int,
     vector_count: int,
+    supporting_file_count: int,
     unsupported_file_count: int,
 ) -> str:
     """
-    Resolve dataset status from simple v1 rules.
+    Detect dataset composition from file categories.
     """
 
-    if unsupported_file_count > 0 and average_score < 60:
-        return "not_ready"
+    if unsupported_file_count > 0:
+        return "unsupported_files_present"
 
-    if raster_count == 0 and vector_count == 0:
+    if raster_count == 0 and vector_count == 0 and supporting_file_count > 0:
         return "supporting_files_only"
 
-    if raster_count > 0 and vector_count > 0 and average_score >= 80:
-        return "ready_for_alignment_check"
+    if raster_count == 0 and vector_count > 0:
+        return "vector_only"
+
+    if raster_count > 0 and vector_count == 0:
+        return "raster_only"
+
+    if raster_count > 0 and vector_count > 0 and supporting_file_count > 0:
+        return "mixed_spatial_and_supporting"
+
+    if raster_count > 0 and vector_count > 0:
+        return "raster_vector_combo"
+
+    return "unknown"
+
+
+def _build_composition_issues(
+    composition: str,
+    raster_count: int,
+    vector_count: int,
+    supporting_file_count: int,
+    unsupported_file_count: int,
+) -> list[str]:
+    """
+    Build dataset issues from composition rules.
+    """
+
+    issues: list[str] = []
+
+    if composition == "unsupported_files_present":
+        issues.append("Dataset contains unsupported files.")
+
+    if composition == "supporting_files_only":
+        issues.append("Dataset contains only supporting files and no spatial GIS data.")
+
+    if composition == "vector_only":
+        issues.append("Dataset contains vector GIS data but no raster imagery.")
+
+    if composition == "raster_only":
+        issues.append("Dataset contains raster imagery but no vector GIS labels or boundaries.")
+
+    if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
+        issues.append(
+            "Dataset contains both raster and vector data, but CRS, bounds, and spatial alignment have not been compared yet."
+        )
+
+    if supporting_file_count > 0 and composition != "supporting_files_only":
+        issues.append(
+            "Dataset includes supporting files that should be treated as documentation or metadata, not spatial training data."
+        )
+
+    if unsupported_file_count > 0:
+        issues.append(
+            f"Dataset has {unsupported_file_count} unsupported file(s)."
+        )
+
+    if raster_count == 0 and composition not in {"supporting_files_only", "vector_only"}:
+        issues.append("Dataset does not contain raster imagery.")
+
+    if vector_count == 0 and composition not in {"supporting_files_only", "raster_only"}:
+        issues.append("Dataset does not contain vector GIS data.")
+
+    return issues
+
+
+def _build_composition_recommended_actions(
+    composition: str,
+    raster_count: int,
+    vector_count: int,
+    supporting_file_count: int,
+    unsupported_file_count: int,
+) -> list[str]:
+    """
+    Build recommended actions from composition rules.
+    """
+
+    actions: list[str] = []
+
+    if composition == "unsupported_files_present":
+        actions.append(
+            "Remove unsupported files or replace them with supported dataset files."
+        )
+
+    if composition == "supporting_files_only":
+        actions.append(
+            "Upload raster imagery or vector GIS data before preparing a GeoAI dataset."
+        )
+        actions.append(
+            "Keep supporting files as documentation, notes, or metadata."
+        )
+
+    if composition == "vector_only":
+        actions.append(
+            "Upload raster imagery if the vector data is intended to be used as labels, boundaries, or annotations for GeoAI training."
+        )
+        actions.append(
+            "If this is a vector-only GIS dataset, continue with vector quality checks before model preparation."
+        )
+
+    if composition == "raster_only":
+        actions.append(
+            "Upload vector labels, masks, or annotations if the raster is intended for supervised training."
+        )
+        actions.append(
+            "If this is an imagery-only dataset, continue with raster validation, tiling, and statistics."
+        )
+
+    if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
+        actions.append(
+            "Next step should compare raster and vector CRS, bounds, and spatial alignment."
+        )
+        actions.append(
+            "After alignment checks, this dataset may be suitable for mask generation, tiling, or supervised GeoAI preparation."
+        )
+
+    if supporting_file_count > 0 and composition != "supporting_files_only":
+        actions.append(
+            "Keep supporting files in the dataset package as metadata or documentation."
+        )
+
+    if not actions:
+        actions.append("Dataset looks ready for the current inspection stage.")
+
+    return actions
+
+
+def _resolve_dataset_status(
+    average_score: int,
+    composition: str,
+    unsupported_file_count: int,
+) -> str:
+    """
+    Resolve dataset status from composition and average score.
+    """
+
+    if composition == "unsupported_files_present":
+        return "needs_cleanup"
+
+    if composition == "supporting_files_only":
+        return "supporting_files_only"
+
+    if composition == "vector_only":
+        return "vector_only"
+
+    if composition == "raster_only":
+        return "raster_only"
+
+    if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
+        if average_score >= 80 and unsupported_file_count == 0:
+            return "ready_for_alignment_check"
+
+        return "partially_ready"
 
     if average_score >= 70:
         return "partially_ready"
@@ -242,8 +393,44 @@ def _resolve_dataset_status(
     return "not_ready"
 
 
+def _adjust_dataset_score_for_composition(
+    average_score: int,
+    composition: str,
+    unsupported_file_count: int,
+) -> int:
+    """
+    Adjust dataset score so composition meaning is reflected.
+
+    This avoids cases where supporting files only look too ready just because
+    their file-level score is acceptable.
+    """
+
+    score = average_score
+
+    if composition == "supporting_files_only":
+        score = min(score, 40)
+
+    if composition == "vector_only":
+        score = min(score, 70)
+
+    if composition == "raster_only":
+        score = min(score, 70)
+
+    if composition == "unsupported_files_present":
+        score = min(score, 50)
+
+    if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
+        score = min(score, 85)
+
+    if unsupported_file_count > 0:
+        score -= min(unsupported_file_count * 10, 30)
+
+    return max(score, 0)
+
+
 def _build_dataset_summary(
     status: str,
+    composition: str,
     file_count: int,
     raster_count: int,
     vector_count: int,
@@ -254,13 +441,15 @@ def _build_dataset_summary(
     Build human-readable dataset summary.
     """
 
+    composition_label = composition.replace("_", " ")
+
     return (
-        f"Dataset has {file_count} file(s): "
+        f"Dataset composition is '{composition_label}'. "
+        f"It has {file_count} file(s): "
         f"{raster_count} raster, "
         f"{vector_count} vector, "
         f"{supporting_file_count} supporting, "
         f"{unsupported_file_count} unsupported. "
         f"Current dataset status is '{status}'."
     )
-
     
