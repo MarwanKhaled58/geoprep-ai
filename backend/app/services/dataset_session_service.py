@@ -47,9 +47,6 @@ def get_dataset_session(dataset_session_id: str) -> dict | None:
 def get_or_create_dataset_session(dataset_session_id: str | None = None) -> dict:
     """
     Get an existing session or create a new one.
-
-    This keeps the current upload flow working even if the frontend does not
-    explicitly create a dataset session first.
     """
 
     if dataset_session_id:
@@ -75,6 +72,8 @@ def add_uploaded_file_to_dataset_session(
         dataset_session = create_dataset_session()
 
     readiness_report = upload_result.get("readiness_report") or {}
+    gis_metadata = upload_result.get("gis_metadata") or {}
+    crs = gis_metadata.get("crs") or {}
 
     file_summary = {
         "original_filename": upload_result.get("original_filename"),
@@ -83,6 +82,10 @@ def add_uploaded_file_to_dataset_session(
         "is_supported": upload_result.get("is_supported"),
         "readiness_score": readiness_report.get("readiness_score"),
         "readiness_status": readiness_report.get("status"),
+        "gis_type": gis_metadata.get("gis_type"),
+        "has_crs": crs.get("has_crs"),
+        "crs_text": crs.get("crs_text"),
+        "epsg": crs.get("epsg"),
     }
 
     dataset_session["files"].append(file_summary)
@@ -107,7 +110,12 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     - mixed spatial + supporting
     - unsupported files present
 
-    This does not yet compare CRS, bounds, resolution, or spatial alignment.
+    V1 CRS rules:
+    - no spatial files
+    - missing CRS
+    - unresolved CRS
+    - mixed CRS
+    - consistent CRS
     """
 
     if not files:
@@ -139,6 +147,8 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         unsupported_file_count=unsupported_file_count,
     )
 
+    crs_summary = generate_dataset_crs_summary(files)
+
     issues = _build_composition_issues(
         composition=composition,
         raster_count=raster_count,
@@ -155,16 +165,21 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         unsupported_file_count=unsupported_file_count,
     )
 
+    issues.extend(crs_summary["issues"])
+    recommended_actions.extend(crs_summary["recommended_actions"])
+
     status = _resolve_dataset_status(
         average_score=average_score,
         composition=composition,
         unsupported_file_count=unsupported_file_count,
+        crs_status=crs_summary["status"],
     )
 
     adjusted_score = _adjust_dataset_score_for_composition(
         average_score=average_score,
         composition=composition,
         unsupported_file_count=unsupported_file_count,
+        crs_status=crs_summary["status"],
     )
 
     summary = _build_dataset_summary(
@@ -181,12 +196,134 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "readiness_score": adjusted_score,
         "status": status,
         "summary": summary,
-        "issues": issues,
-        "recommended_actions": recommended_actions,
+        "issues": _deduplicate_text_items(issues),
+        "recommended_actions": _deduplicate_text_items(recommended_actions),
         "raster_count": raster_count,
         "vector_count": vector_count,
         "supporting_file_count": supporting_file_count,
         "unsupported_file_count": unsupported_file_count,
+        "crs_summary": crs_summary,
+    }
+
+
+def generate_dataset_crs_summary(files: list[dict]) -> dict:
+    """
+    Compare CRS information across spatial files in the dataset.
+    """
+
+    spatial_files = [
+        file
+        for file in files
+        if file.get("file_category") in {"raster", "vector"}
+        or file.get("gis_type") in {"raster", "vector"}
+    ]
+
+    if not spatial_files:
+        return {
+            "status": "no_spatial_files",
+            "summary": "No raster or vector spatial files are available for CRS comparison.",
+            "spatial_file_count": 0,
+            "files_missing_crs": [],
+            "files_with_unresolved_crs": [],
+            "crs_groups": [],
+            "issues": [],
+            "recommended_actions": [
+                "Upload raster or vector GIS files before CRS comparison."
+            ],
+        }
+
+    files_missing_crs = []
+    files_with_unresolved_crs = []
+    crs_groups_map: dict[str, list[str]] = {}
+
+    for file in spatial_files:
+        filename = file.get("original_filename") or "unknown file"
+        has_crs = file.get("has_crs")
+        epsg = file.get("epsg")
+        crs_text = file.get("crs_text")
+
+        if not has_crs:
+            files_missing_crs.append(filename)
+            continue
+
+        if isinstance(epsg, int):
+            crs_label = f"EPSG:{epsg}"
+        elif isinstance(crs_text, str) and crs_text:
+            crs_label = crs_text
+            files_with_unresolved_crs.append(filename)
+        else:
+            files_with_unresolved_crs.append(filename)
+            crs_label = "Unresolved CRS"
+
+        crs_groups_map.setdefault(crs_label, []).append(filename)
+
+    crs_groups = [
+        {
+            "crs_label": crs_label,
+            "file_count": len(filenames),
+            "filenames": filenames,
+        }
+        for crs_label, filenames in crs_groups_map.items()
+    ]
+
+    issues: list[str] = []
+    actions: list[str] = []
+
+    if files_missing_crs:
+        issues.append(
+            "Some spatial files are missing CRS metadata."
+        )
+        actions.append(
+            "Define the correct CRS for files missing CRS metadata before spatial alignment or model preparation."
+        )
+
+    if files_with_unresolved_crs:
+        issues.append(
+            "Some spatial files have CRS metadata that could not be resolved to an EPSG code."
+        )
+        actions.append(
+            "Review unresolved CRS definitions manually and confirm whether they match the target dataset CRS."
+        )
+
+    if len(crs_groups) > 1:
+        issues.append(
+            "Spatial files use different CRS definitions."
+        )
+        actions.append(
+            "Reproject raster and vector data into one common CRS before bounds comparison, alignment, tiling, or mask generation."
+        )
+
+    if files_missing_crs:
+        status = "missing_crs"
+    elif len(crs_groups) > 1:
+        status = "mixed_crs"
+    elif files_with_unresolved_crs:
+        status = "unresolved_crs"
+    else:
+        status = "consistent_crs"
+
+    summary = _build_crs_summary_text(
+        status=status,
+        spatial_file_count=len(spatial_files),
+        crs_groups=crs_groups,
+        files_missing_crs=files_missing_crs,
+        files_with_unresolved_crs=files_with_unresolved_crs,
+    )
+
+    if status == "consistent_crs":
+        actions.append(
+            "CRS is consistent across spatial files. Next step should compare bounds and spatial overlap."
+        )
+
+    return {
+        "status": status,
+        "summary": summary,
+        "spatial_file_count": len(spatial_files),
+        "files_missing_crs": files_missing_crs,
+        "files_with_unresolved_crs": files_with_unresolved_crs,
+        "crs_groups": crs_groups,
+        "issues": _deduplicate_text_items(issues),
+        "recommended_actions": _deduplicate_text_items(actions),
     }
 
 
@@ -205,6 +342,18 @@ def _generate_empty_dataset_readiness_summary() -> dict:
         "vector_count": 0,
         "supporting_file_count": 0,
         "unsupported_file_count": 0,
+        "crs_summary": {
+            "status": "no_spatial_files",
+            "summary": "No raster or vector spatial files are available for CRS comparison.",
+            "spatial_file_count": 0,
+            "files_missing_crs": [],
+            "files_with_unresolved_crs": [],
+            "crs_groups": [],
+            "issues": [],
+            "recommended_actions": [
+                "Upload raster or vector GIS files before CRS comparison."
+            ],
+        },
     }
 
 
@@ -274,7 +423,7 @@ def _build_composition_issues(
 
     if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
         issues.append(
-            "Dataset contains both raster and vector data, but CRS, bounds, and spatial alignment have not been compared yet."
+            "Dataset contains both raster and vector data, but CRS, bounds, and spatial alignment still need to be reviewed."
         )
 
     if supporting_file_count > 0 and composition != "supporting_files_only":
@@ -283,9 +432,7 @@ def _build_composition_issues(
         )
 
     if unsupported_file_count > 0:
-        issues.append(
-            f"Dataset has {unsupported_file_count} unsupported file(s)."
-        )
+        issues.append(f"Dataset has {unsupported_file_count} unsupported file(s).")
 
     if raster_count == 0 and composition not in {"supporting_files_only", "vector_only"}:
         issues.append("Dataset does not contain raster imagery.")
@@ -318,9 +465,7 @@ def _build_composition_recommended_actions(
         actions.append(
             "Upload raster imagery or vector GIS data before preparing a GeoAI dataset."
         )
-        actions.append(
-            "Keep supporting files as documentation, notes, or metadata."
-        )
+        actions.append("Keep supporting files as documentation, notes, or metadata.")
 
     if composition == "vector_only":
         actions.append(
@@ -361,13 +506,17 @@ def _resolve_dataset_status(
     average_score: int,
     composition: str,
     unsupported_file_count: int,
+    crs_status: str,
 ) -> str:
     """
-    Resolve dataset status from composition and average score.
+    Resolve dataset status from composition, CRS, and average score.
     """
 
     if composition == "unsupported_files_present":
         return "needs_cleanup"
+
+    if crs_status in {"missing_crs", "mixed_crs"}:
+        return "needs_crs_review"
 
     if composition == "supporting_files_only":
         return "supporting_files_only"
@@ -380,7 +529,7 @@ def _resolve_dataset_status(
 
     if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
         if average_score >= 80 and unsupported_file_count == 0:
-            return "ready_for_alignment_check"
+            return "ready_for_bounds_check"
 
         return "partially_ready"
 
@@ -397,12 +546,10 @@ def _adjust_dataset_score_for_composition(
     average_score: int,
     composition: str,
     unsupported_file_count: int,
+    crs_status: str,
 ) -> int:
     """
-    Adjust dataset score so composition meaning is reflected.
-
-    This avoids cases where supporting files only look too ready just because
-    their file-level score is acceptable.
+    Adjust dataset score so composition and CRS meaning are reflected.
     """
 
     score = average_score
@@ -421,6 +568,15 @@ def _adjust_dataset_score_for_composition(
 
     if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
         score = min(score, 85)
+
+    if crs_status == "missing_crs":
+        score = min(score, 55)
+
+    if crs_status == "mixed_crs":
+        score = min(score, 65)
+
+    if crs_status == "unresolved_crs":
+        score = min(score, 80)
 
     if unsupported_file_count > 0:
         score -= min(unsupported_file_count * 10, 30)
@@ -452,4 +608,55 @@ def _build_dataset_summary(
         f"{unsupported_file_count} unsupported. "
         f"Current dataset status is '{status}'."
     )
+
+
+def _build_crs_summary_text(
+    status: str,
+    spatial_file_count: int,
+    crs_groups: list[dict],
+    files_missing_crs: list[str],
+    files_with_unresolved_crs: list[str],
+) -> str:
+    """
+    Build human-readable CRS summary.
+    """
+
+    if status == "no_spatial_files":
+        return "No spatial files are available for CRS comparison."
+
+    if status == "missing_crs":
+        return (
+            f"CRS comparison found {len(files_missing_crs)} file(s) missing CRS metadata "
+            f"out of {spatial_file_count} spatial file(s)."
+        )
+
+    if status == "mixed_crs":
+        return (
+            f"CRS comparison found {len(crs_groups)} different CRS definition(s) "
+            f"across {spatial_file_count} spatial file(s)."
+        )
+
+    if status == "unresolved_crs":
+        return (
+            f"All spatial files have CRS metadata, but {len(files_with_unresolved_crs)} "
+            "file(s) could not be resolved to EPSG codes."
+        )
+
+    return (
+        f"All {spatial_file_count} spatial file(s) use one consistent CRS definition."
+    )
+
+
+def _deduplicate_text_items(items: list[str]) -> list[str]:
+    """
+    Remove duplicate text items while preserving order.
+    """
+
+    deduplicated = []
+
+    for item in items:
+        if item not in deduplicated:
+            deduplicated.append(item)
+
+    return deduplicated
     

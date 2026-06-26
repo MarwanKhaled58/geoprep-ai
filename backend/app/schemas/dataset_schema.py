@@ -12,15 +12,42 @@ class DatasetFileSummary(BaseModel):
     is_supported: bool
     readiness_score: int | None = None
     readiness_status: str | None = None
+    gis_type: str | None = None
+    has_crs: bool | None = None
+    crs_text: str | None = None
+    epsg: int | None = None
+
+
+class DatasetCrsGroup(BaseModel):
+    """
+    Group of spatial files sharing the same CRS representation.
+    """
+
+    crs_label: str
+    file_count: int
+    filenames: list[str] = Field(default_factory=list)
+
+
+class DatasetCrsSummary(BaseModel):
+    """
+    Dataset-level CRS comparison summary.
+    """
+
+    status: str
+    summary: str
+    spatial_file_count: int
+    files_missing_crs: list[str] = Field(default_factory=list)
+    files_with_unresolved_crs: list[str] = Field(default_factory=list)
+    crs_groups: list[DatasetCrsGroup] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
 
 
 class DatasetReadinessSummary(BaseModel):
     """
     Dataset-level readiness summary.
 
-    This is v1 and is based on uploaded file summaries only.
-    Later, it can use full inspection results, CRS comparison,
-    raster/vector relationships, labels, masks, and task intent.
+    This is based on uploaded file summaries.
     """
 
     readiness_score: int
@@ -32,6 +59,7 @@ class DatasetReadinessSummary(BaseModel):
     vector_count: int = 0
     supporting_file_count: int = 0
     unsupported_file_count: int = 0
+    crs_summary: DatasetCrsSummary | None = None
 
 
 class DatasetSession(BaseModel):

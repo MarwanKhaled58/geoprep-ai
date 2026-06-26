@@ -72,6 +72,7 @@ function FileUpload() {
     batchResult?.dataset_session ?? uploadResult?.dataset_session;
 
   const datasetReadinessSummary = datasetSession?.readiness_summary;
+  const crsSummary = datasetReadinessSummary?.crs_summary;
 
   return (
     <section className="upload-section">
@@ -82,7 +83,7 @@ function FileUpload() {
           <p className="section-description">
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
-            analyze readiness, and recommend next actions.
+            analyze readiness, compare CRS, and recommend next actions.
           </p>
         </div>
 
@@ -189,6 +190,84 @@ function FileUpload() {
               </div>
             </div>
           </div>
+
+          {crsSummary && (
+            <div className="crs-review-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>CRS Review</h4>
+                  <p className="small-muted">
+                    Spatial CRS comparison across raster and vector files.
+                  </p>
+                </div>
+
+                <span className={`status-pill status-${crsSummary.status}`}>
+                  {crsSummary.status}
+                </span>
+              </div>
+
+              <p>{crsSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Spatial files"
+                  value={String(crsSummary.spatial_file_count)}
+                />
+                <InfoItem
+                  label="CRS groups"
+                  value={String(crsSummary.crs_groups.length)}
+                />
+                <InfoItem
+                  label="Missing CRS"
+                  value={String(crsSummary.files_missing_crs.length)}
+                />
+                <InfoItem
+                  label="Unresolved CRS"
+                  value={String(crsSummary.files_with_unresolved_crs.length)}
+                />
+              </div>
+
+              {crsSummary.crs_groups.length > 0 && (
+                <>
+                  <h5>CRS Groups</h5>
+
+                  <ul className="clean-list">
+                    {crsSummary.crs_groups.map((group, index) => (
+                      <li key={`crs-group-${index}`}>
+                        <strong>{formatCrsLabel(group.crs_label)}</strong> —{" "}
+                        {group.file_count} file(s):{" "}
+                        {group.filenames.join(", ")}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {crsSummary.files_missing_crs.length > 0 && (
+                <>
+                  <h5>Files Missing CRS</h5>
+
+                  <ul className="clean-list">
+                    {crsSummary.files_missing_crs.map((filename) => (
+                      <li key={`missing-crs-${filename}`}>{filename}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {crsSummary.files_with_unresolved_crs.length > 0 && (
+                <>
+                  <h5>Files With Unresolved CRS</h5>
+
+                  <ul className="clean-list">
+                    {crsSummary.files_with_unresolved_crs.map((filename) => (
+                      <li key={`unresolved-crs-${filename}`}>{filename}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="report-columns">
             <div>
@@ -334,9 +413,7 @@ function FileReportCard({ result }: FileReportCardProps) {
           {readinessReport && <span className="score-total">/100</span>}
         </div>
 
-        <span className="small-muted">
-          {warnings.length} warning(s)
-        </span>
+        <span className="small-muted">{warnings.length} warning(s)</span>
       </div>
 
       {readinessReport && (
@@ -417,6 +494,30 @@ function getGisType(result: UploadResponse): string {
     : "non-gis";
 }
 
+function formatCrsLabel(crsLabel: string): string {
+  if (crsLabel.startsWith("EPSG:")) {
+    return crsLabel;
+  }
+
+  const projectedNameMatch = crsLabel.match(/PROJCS\["([^"]+)"/);
+
+  if (projectedNameMatch?.[1]) {
+    return projectedNameMatch[1];
+  }
+
+  const geographicNameMatch = crsLabel.match(/GEOGCS\["([^"]+)"/);
+
+  if (geographicNameMatch?.[1]) {
+    return geographicNameMatch[1];
+  }
+
+  if (crsLabel.length > 80) {
+    return `${crsLabel.slice(0, 80)}...`;
+  }
+
+  return crsLabel;
+}
+
 function getImportantMetadata(
   result: UploadResponse,
 ): Array<{ label: string; value: string }> {
@@ -428,7 +529,7 @@ function getImportantMetadata(
       label: "CRS",
       value:
         crs && typeof crs.crs_text === "string"
-          ? crs.crs_text
+          ? formatCrsLabel(crs.crs_text)
           : "Not available",
     },
   ];

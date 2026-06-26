@@ -199,3 +199,30 @@
     grid-template-columns: 1fr;
   }
 }
+.status-consistent_crs,
+.status-ready_for_bounds_check {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-unresolved_crs,
+.status-no_spatial_files {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-mixed_crs,
+.status-missing_crs,
+.status-needs_crs_review {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.crs-review-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+

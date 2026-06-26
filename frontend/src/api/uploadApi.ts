@@ -18,6 +18,23 @@ export type ReadinessReport = {
   can_continue_to_dataset: boolean;
 };
 
+export type DatasetCrsGroup = {
+  crs_label: string;
+  file_count: number;
+  filenames: string[];
+};
+
+export type DatasetCrsSummary = {
+  status: string;
+  summary: string;
+  spatial_file_count: number;
+  files_missing_crs: string[];
+  files_with_unresolved_crs: string[];
+  crs_groups: DatasetCrsGroup[];
+  issues: string[];
+  recommended_actions: string[];
+};
+
 export type DatasetReadinessSummary = {
   readiness_score: number;
   status: string;
@@ -28,6 +45,7 @@ export type DatasetReadinessSummary = {
   vector_count: number;
   supporting_file_count: number;
   unsupported_file_count: number;
+  crs_summary: DatasetCrsSummary | null;
 };
 
 export type DatasetFileSummary = {
@@ -37,6 +55,10 @@ export type DatasetFileSummary = {
   is_supported: boolean;
   readiness_score: number | null;
   readiness_status: string | null;
+  gis_type?: string | null;
+  has_crs?: boolean | null;
+  crs_text?: string | null;
+  epsg?: number | null;
 };
 
 export type DatasetSession = {
