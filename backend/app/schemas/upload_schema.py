@@ -32,7 +32,7 @@ class ReadinessReport(BaseModel):
 class UploadResponse(BaseModel):
     """
     Response returned after a file is uploaded, saved, classified, inspected,
-    checked for warnings, and attached to a dataset session.
+    checked for warnings, analyzed for readiness, and attached to a dataset session.
     """
 
     status: str
@@ -52,4 +52,16 @@ class UploadResponse(BaseModel):
     dataset_session_id: str
     dataset_session: DatasetSession
 
+
+class BatchUploadResponse(BaseModel):
+    """
+    Response returned after multiple files are uploaded to the same dataset session.
+    """
+
+    status: str
+    message: str
+    file_count: int
+    dataset_session_id: str
+    dataset_session: DatasetSession
+    uploads: list[UploadResponse]
     

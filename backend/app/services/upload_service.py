@@ -84,4 +84,40 @@ async def save_uploaded_file(
 
     return upload_result
 
+
+async def save_multiple_uploaded_files(
+    files: list[UploadFile],
+    dataset_session_id: str | None = None,
+) -> dict:
+    """
+    Upload multiple files and attach all of them to the same dataset session.
+    """
+
+    dataset_session = get_or_create_dataset_session(dataset_session_id)
+    active_dataset_session_id = dataset_session["dataset_session_id"]
+
+    upload_results: list[dict] = []
+
+    for file in files:
+        upload_result = await save_uploaded_file(
+            file=file,
+            dataset_session_id=active_dataset_session_id,
+        )
+
+        upload_results.append(upload_result)
+
+    final_dataset_session = (
+        upload_results[-1]["dataset_session"]
+        if upload_results
+        else dataset_session
+    )
+
+    return {
+        "status": "success",
+        "message": "Multiple files uploaded, inspected, analyzed, and attached to dataset session successfully",
+        "file_count": len(upload_results),
+        "dataset_session_id": active_dataset_session_id,
+        "dataset_session": final_dataset_session,
+        "uploads": upload_results,
+    }
     

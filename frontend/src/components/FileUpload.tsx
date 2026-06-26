@@ -1,23 +1,31 @@
 import { useState } from "react";
-import { uploadFile, type UploadResponse } from "../api/uploadApi";
+import {
+  uploadFile,
+  uploadFiles,
+  type BatchUploadResponse,
+  type UploadResponse,
+} from "../api/uploadApi";
 
 function FileUpload() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
+  const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(null);
   const [error, setError] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    const file = event.target.files?.[0] ?? null;
-    setSelectedFile(file);
+    const files = Array.from(event.target.files ?? []);
+
+    setSelectedFiles(files);
     setUploadResult(null);
+    setBatchResult(null);
     setError("");
   }
 
   async function handleUpload(): Promise<void> {
-    if (!selectedFile) {
-      setError("Please select a file first.");
+    if (selectedFiles.length === 0) {
+      setError("Please select at least one file first.");
       return;
     }
 
@@ -25,16 +33,30 @@ function FileUpload() {
       setIsUploading(true);
       setError("");
       setUploadResult(null);
+      setBatchResult(null);
 
-      const result = await uploadFile(selectedFile, datasetSessionId);
+      if (selectedFiles.length === 1) {
+        const result = await uploadFile(selectedFiles[0], datasetSessionId);
+
+        if (result.dataset_session_id) {
+          setDatasetSessionId(result.dataset_session_id);
+        }
+
+        setUploadResult(result);
+        return;
+      }
+
+      const result = await uploadFiles(selectedFiles, datasetSessionId);
 
       if (result.dataset_session_id) {
         setDatasetSessionId(result.dataset_session_id);
       }
 
-      setUploadResult(result);
+      setBatchResult(result);
+      setUploadResult(result.uploads[result.uploads.length - 1] ?? null);
     } catch (err) {
       setUploadResult(null);
+      setBatchResult(null);
       setError(err instanceof Error ? err.message : "Unknown upload error");
     } finally {
       setIsUploading(false);
@@ -43,41 +65,71 @@ function FileUpload() {
 
   const warnings = uploadResult?.warnings ?? [];
   const readinessReport = uploadResult?.readiness_report;
-  const datasetSession = uploadResult?.dataset_session;
+  const datasetSession =
+    batchResult?.dataset_session ?? uploadResult?.dataset_session;
   const datasetReadinessSummary = datasetSession?.readiness_summary;
 
   return (
     <section className="upload-section">
       <div className="card">
-        <h2>Upload GIS File</h2>
+        <h2>Upload GIS Files</h2>
 
         <p className="section-description">
-          Upload a raster, vector, image, document, or supporting dataset file.
-          GeoPrep AI will classify it, inspect GIS metadata when possible, and
+          Upload raster, vector, image, document, or supporting dataset files.
+          GeoPrep AI will classify them, inspect GIS metadata when possible, and
           generate warnings and readiness feedback.
         </p>
 
         <div className="upload-controls">
-          <input type="file" onChange={handleFileChange} />
+          <input type="file" multiple onChange={handleFileChange} />
 
           <button onClick={handleUpload} disabled={isUploading}>
-            {isUploading ? "Uploading..." : "Upload File"}
+            {isUploading ? "Uploading..." : "Upload File(s)"}
           </button>
         </div>
 
-        {selectedFile && (
-          <p className="selected-file">
-            Selected file: <strong>{selectedFile.name}</strong>
-          </p>
+        {selectedFiles.length > 0 && (
+          <div className="selected-file">
+            <p>
+              Selected files: <strong>{selectedFiles.length}</strong>
+            </p>
+
+            <ul>
+              {selectedFiles.map((file) => (
+                <li key={`${file.name}-${file.size}`}>{file.name}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {error && <div className="error-box">{error}</div>}
       </div>
 
+      {batchResult && (
+        <div className="card">
+          <h3>Batch Upload Summary</h3>
+
+          <p>{batchResult.message}</p>
+
+          <div className="info-grid">
+            <InfoItem label="Uploaded files" value={String(batchResult.file_count)} />
+            <InfoItem label="Dataset session" value={batchResult.dataset_session_id} />
+            <InfoItem
+              label="Dataset file count"
+              value={String(batchResult.dataset_session.file_count)}
+            />
+            <InfoItem
+              label="Dataset status"
+              value={batchResult.dataset_session.readiness_summary?.status ?? "unknown"}
+            />
+          </div>
+        </div>
+      )}
+
       {uploadResult && (
         <div className="results-grid">
           <div className="card">
-            <h3>File Summary</h3>
+            <h3>Latest File Summary</h3>
 
             <div className="info-grid">
               <InfoItem
@@ -109,7 +161,7 @@ function FileUpload() {
           {readinessReport && (
             <div className="card">
               <div className="card-header-row">
-                <h3>File Readiness Report</h3>
+                <h3>Latest File Readiness Report</h3>
 
                 <span className={`status-pill status-${readinessReport.status}`}>
                   {readinessReport.status}
@@ -159,7 +211,7 @@ function FileUpload() {
           )}
 
           <div className="card">
-            <h3>File Warnings</h3>
+            <h3>Latest File Warnings</h3>
 
             {warnings.length === 0 ? (
               <div className="success-box">No warnings detected.</div>
@@ -290,7 +342,7 @@ function FileUpload() {
 
           {uploadResult.gis_metadata && (
             <div className="card full-width-card">
-              <h3>GIS Metadata</h3>
+              <h3>Latest File GIS Metadata</h3>
 
               <pre className="metadata-box">
                 {JSON.stringify(uploadResult.gis_metadata, null, 2)}

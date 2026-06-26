@@ -68,6 +68,15 @@ export type UploadResponse = {
   dataset_session?: DatasetSession;
 };
 
+export type BatchUploadResponse = {
+  status: string;
+  message: string;
+  file_count: number;
+  dataset_session_id: string;
+  dataset_session: DatasetSession;
+  uploads: UploadResponse[];
+};
+
 export async function uploadFile(
   file: File,
   datasetSessionId?: string,
@@ -92,3 +101,29 @@ export async function uploadFile(
   return response.json();
 }
 
+export async function uploadFiles(
+  files: File[],
+  datasetSessionId?: string,
+): Promise<BatchUploadResponse> {
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  if (datasetSessionId) {
+    formData.append("dataset_session_id", datasetSessionId);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/upload/batch`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.detail ?? "Failed to upload files");
+  }
+
+  return response.json();
+}
