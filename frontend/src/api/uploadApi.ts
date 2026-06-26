@@ -35,6 +35,22 @@ export type DatasetCrsSummary = {
   recommended_actions: string[];
 };
 
+export type DatasetBoundsPair = {
+  first_file: string;
+  second_file: string;
+  overlaps: boolean;
+};
+
+export type DatasetBoundsSummary = {
+  status: string;
+  summary: string;
+  spatial_file_count: number;
+  files_missing_bounds: string[];
+  bounds_pairs: DatasetBoundsPair[];
+  issues: string[];
+  recommended_actions: string[];
+};
+
 export type DatasetReadinessSummary = {
   readiness_score: number;
   status: string;
@@ -46,7 +62,9 @@ export type DatasetReadinessSummary = {
   supporting_file_count: number;
   unsupported_file_count: number;
   crs_summary: DatasetCrsSummary | null;
+  bounds_summary: DatasetBoundsSummary | null;
 };
+
 
 export type DatasetFileSummary = {
   original_filename: string;
@@ -59,6 +77,7 @@ export type DatasetFileSummary = {
   has_crs?: boolean | null;
   crs_text?: string | null;
   epsg?: number | null;
+  bounds?: Record<string, unknown> | null;
 };
 
 export type DatasetSession = {

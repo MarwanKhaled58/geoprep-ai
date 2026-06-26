@@ -16,6 +16,7 @@ class DatasetFileSummary(BaseModel):
     has_crs: bool | None = None
     crs_text: str | None = None
     epsg: int | None = None
+    bounds: dict | None = None
 
 
 class DatasetCrsGroup(BaseModel):
@@ -43,11 +44,33 @@ class DatasetCrsSummary(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
 
 
+class DatasetBoundsPair(BaseModel):
+    """
+    Bounds relationship between two spatial files.
+    """
+
+    first_file: str
+    second_file: str
+    overlaps: bool
+
+
+class DatasetBoundsSummary(BaseModel):
+    """
+    Dataset-level bounds and spatial relationship summary.
+    """
+
+    status: str
+    summary: str
+    spatial_file_count: int
+    files_missing_bounds: list[str] = Field(default_factory=list)
+    bounds_pairs: list[DatasetBoundsPair] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
+
 class DatasetReadinessSummary(BaseModel):
     """
     Dataset-level readiness summary.
-
-    This is based on uploaded file summaries.
     """
 
     readiness_score: int
@@ -60,6 +83,7 @@ class DatasetReadinessSummary(BaseModel):
     supporting_file_count: int = 0
     unsupported_file_count: int = 0
     crs_summary: DatasetCrsSummary | None = None
+    bounds_summary: DatasetBoundsSummary | None = None
 
 
 class DatasetSession(BaseModel):

@@ -73,6 +73,7 @@ function FileUpload() {
 
   const datasetReadinessSummary = datasetSession?.readiness_summary;
   const crsSummary = datasetReadinessSummary?.crs_summary;
+  const boundsSummary = datasetReadinessSummary?.bounds_summary;
 
   return (
     <section className="upload-section">
@@ -83,7 +84,8 @@ function FileUpload() {
           <p className="section-description">
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
-            analyze readiness, compare CRS, and recommend next actions.
+            analyze readiness, compare CRS, review bounds, and recommend next
+            actions.
           </p>
         </div>
 
@@ -262,6 +264,76 @@ function FileUpload() {
                   <ul className="clean-list">
                     {crsSummary.files_with_unresolved_crs.map((filename) => (
                       <li key={`unresolved-crs-${filename}`}>{filename}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {boundsSummary && (
+            <div className="bounds-review-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>Bounds Review</h4>
+                  <p className="small-muted">
+                    Spatial bounds and overlap readiness across raster and
+                    vector files.
+                  </p>
+                </div>
+
+                <span className={`status-pill status-${boundsSummary.status}`}>
+                  {boundsSummary.status}
+                </span>
+              </div>
+
+              <p>{boundsSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Spatial files"
+                  value={String(boundsSummary.spatial_file_count)}
+                />
+                <InfoItem
+                  label="Missing bounds"
+                  value={String(boundsSummary.files_missing_bounds.length)}
+                />
+                <InfoItem
+                  label="Bounds pairs"
+                  value={String(boundsSummary.bounds_pairs.length)}
+                />
+                <InfoItem
+                  label="Overlapping pairs"
+                  value={String(
+                    boundsSummary.bounds_pairs.filter((pair) => pair.overlaps)
+                      .length,
+                  )}
+                />
+              </div>
+
+              {boundsSummary.bounds_pairs.length > 0 && (
+                <>
+                  <h5>Bounds Pairs</h5>
+
+                  <ul className="clean-list">
+                    {boundsSummary.bounds_pairs.map((pair, index) => (
+                      <li key={`bounds-pair-${index}`}>
+                        <strong>{pair.first_file}</strong> ↔{" "}
+                        <strong>{pair.second_file}</strong> —{" "}
+                        {pair.overlaps ? "overlaps" : "does not overlap"}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {boundsSummary.files_missing_bounds.length > 0 && (
+                <>
+                  <h5>Files Missing Bounds</h5>
+
+                  <ul className="clean-list">
+                    {boundsSummary.files_missing_bounds.map((filename) => (
+                      <li key={`missing-bounds-${filename}`}>{filename}</li>
                     ))}
                   </ul>
                 </>

@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.services.dataset_bounds_service import generate_dataset_bounds_summary
+
 
 _DATASET_SESSIONS: dict[str, dict] = {}
 
@@ -73,6 +75,7 @@ def add_uploaded_file_to_dataset_session(
 
     readiness_report = upload_result.get("readiness_report") or {}
     gis_metadata = upload_result.get("gis_metadata") or {}
+    metadata = gis_metadata.get("metadata") or {}
     crs = gis_metadata.get("crs") or {}
 
     file_summary = {
@@ -86,6 +89,7 @@ def add_uploaded_file_to_dataset_session(
         "has_crs": crs.get("has_crs"),
         "crs_text": crs.get("crs_text"),
         "epsg": crs.get("epsg"),
+        "bounds": metadata.get("bounds"),
     }
 
     dataset_session["files"].append(file_summary)
@@ -101,21 +105,6 @@ def add_uploaded_file_to_dataset_session(
 def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     """
     Generate a dataset-level readiness summary from file summaries.
-
-    V1 composition rules:
-    - supporting files only
-    - vector only
-    - raster only
-    - raster + vector
-    - mixed spatial + supporting
-    - unsupported files present
-
-    V1 CRS rules:
-    - no spatial files
-    - missing CRS
-    - unresolved CRS
-    - mixed CRS
-    - consistent CRS
     """
 
     if not files:
@@ -149,6 +138,11 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 
     crs_summary = generate_dataset_crs_summary(files)
 
+    bounds_summary = generate_dataset_bounds_summary(
+        files=files,
+        crs_status=crs_summary["status"],
+    )
+
     issues = _build_composition_issues(
         composition=composition,
         raster_count=raster_count,
@@ -168,11 +162,15 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     issues.extend(crs_summary["issues"])
     recommended_actions.extend(crs_summary["recommended_actions"])
 
+    issues.extend(bounds_summary["issues"])
+    recommended_actions.extend(bounds_summary["recommended_actions"])
+
     status = _resolve_dataset_status(
         average_score=average_score,
         composition=composition,
         unsupported_file_count=unsupported_file_count,
         crs_status=crs_summary["status"],
+        bounds_status=bounds_summary["status"],
     )
 
     adjusted_score = _adjust_dataset_score_for_composition(
@@ -180,6 +178,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         composition=composition,
         unsupported_file_count=unsupported_file_count,
         crs_status=crs_summary["status"],
+        bounds_status=bounds_summary["status"],
     )
 
     summary = _build_dataset_summary(
@@ -203,6 +202,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "supporting_file_count": supporting_file_count,
         "unsupported_file_count": unsupported_file_count,
         "crs_summary": crs_summary,
+        "bounds_summary": bounds_summary,
     }
 
 
@@ -270,9 +270,7 @@ def generate_dataset_crs_summary(files: list[dict]) -> dict:
     actions: list[str] = []
 
     if files_missing_crs:
-        issues.append(
-            "Some spatial files are missing CRS metadata."
-        )
+        issues.append("Some spatial files are missing CRS metadata.")
         actions.append(
             "Define the correct CRS for files missing CRS metadata before spatial alignment or model preparation."
         )
@@ -286,9 +284,7 @@ def generate_dataset_crs_summary(files: list[dict]) -> dict:
         )
 
     if len(crs_groups) > 1:
-        issues.append(
-            "Spatial files use different CRS definitions."
-        )
+        issues.append("Spatial files use different CRS definitions.")
         actions.append(
             "Reproject raster and vector data into one common CRS before bounds comparison, alignment, tiling, or mask generation."
         )
@@ -352,6 +348,17 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             "issues": [],
             "recommended_actions": [
                 "Upload raster or vector GIS files before CRS comparison."
+            ],
+        },
+        "bounds_summary": {
+            "status": "no_spatial_files",
+            "summary": "No raster or vector spatial files are available for bounds comparison.",
+            "spatial_file_count": 0,
+            "files_missing_bounds": [],
+            "bounds_pairs": [],
+            "issues": [],
+            "recommended_actions": [
+                "Upload raster or vector GIS files before bounds comparison."
             ],
         },
     }
@@ -507,9 +514,10 @@ def _resolve_dataset_status(
     composition: str,
     unsupported_file_count: int,
     crs_status: str,
+    bounds_status: str,
 ) -> str:
     """
-    Resolve dataset status from composition, CRS, and average score.
+    Resolve dataset status from composition, CRS, bounds, and average score.
     """
 
     if composition == "unsupported_files_present":
@@ -517,6 +525,9 @@ def _resolve_dataset_status(
 
     if crs_status in {"missing_crs", "mixed_crs"}:
         return "needs_crs_review"
+
+    if bounds_status in {"missing_bounds", "no_spatial_overlap"}:
+        return "needs_spatial_review"
 
     if composition == "supporting_files_only":
         return "supporting_files_only"
@@ -528,8 +539,8 @@ def _resolve_dataset_status(
         return "raster_only"
 
     if composition in {"raster_vector_combo", "mixed_spatial_and_supporting"}:
-        if average_score >= 80 and unsupported_file_count == 0:
-            return "ready_for_bounds_check"
+        if bounds_status == "overlapping_bounds" and average_score >= 80:
+            return "ready_for_alignment_check"
 
         return "partially_ready"
 
@@ -547,9 +558,10 @@ def _adjust_dataset_score_for_composition(
     composition: str,
     unsupported_file_count: int,
     crs_status: str,
+    bounds_status: str,
 ) -> int:
     """
-    Adjust dataset score so composition and CRS meaning are reflected.
+    Adjust dataset score so composition, CRS, and bounds meaning are reflected.
     """
 
     score = average_score
@@ -577,6 +589,18 @@ def _adjust_dataset_score_for_composition(
 
     if crs_status == "unresolved_crs":
         score = min(score, 80)
+
+    if bounds_status == "missing_bounds":
+        score = min(score, 60)
+
+    if bounds_status == "no_spatial_overlap":
+        score = min(score, 55)
+
+    if bounds_status == "partial_spatial_overlap":
+        score = min(score, 75)
+
+    if bounds_status == "blocked_by_crs_review":
+        score = min(score, 65)
 
     if unsupported_file_count > 0:
         score -= min(unsupported_file_count * 10, 30)
