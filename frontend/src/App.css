@@ -380,3 +380,22 @@
     grid-template-columns: 1fr;
   }
 }
+.status-crs_ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-crs_resolution_required,
+.status-crs_needs_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.crs-guidance-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fbfdff;
+  overflow-wrap: anywhere;
+}

@@ -73,6 +73,8 @@ function FileUpload() {
 
   const datasetReadinessSummary = datasetSession?.readiness_summary;
   const crsSummary = datasetReadinessSummary?.crs_summary;
+  const crsResolutionGuidanceSummary =
+    datasetReadinessSummary?.crs_resolution_guidance_summary;
   const boundsSummary = datasetReadinessSummary?.bounds_summary;
   const rasterVectorRelationshipSummary =
     datasetReadinessSummary?.raster_vector_relationship_summary;
@@ -88,8 +90,9 @@ function FileUpload() {
           <p className="section-description">
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
-            analyze readiness, compare CRS, review bounds, detect raster-vector
-            relationships, recommend GeoAI tasks, and recommend next actions.
+            analyze readiness, compare CRS, provide CRS resolution guidance,
+            review bounds, detect raster-vector relationships, recommend GeoAI
+            tasks, and recommend next actions.
           </p>
         </div>
 
@@ -269,6 +272,88 @@ function FileUpload() {
                     {crsSummary.files_with_unresolved_crs.map((filename) => (
                       <li key={`unresolved-crs-${filename}`}>{filename}</li>
                     ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {crsResolutionGuidanceSummary && (
+            <div className="crs-guidance-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>CRS Resolution Guidance</h4>
+                  <p className="small-muted">
+                    Recommended CRS target and per-file reprojection guidance.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${crsResolutionGuidanceSummary.status}`}
+                >
+                  {formatCodeValue(crsResolutionGuidanceSummary.status)}
+                </span>
+              </div>
+
+              <p>{crsResolutionGuidanceSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Recommended target CRS"
+                  value={
+                    crsResolutionGuidanceSummary.recommended_target_crs ??
+                    "Not inferred"
+                  }
+                />
+                <InfoItem
+                  label="Recommended EPSG"
+                  value={
+                    crsResolutionGuidanceSummary.recommended_target_epsg !== null
+                      ? String(crsResolutionGuidanceSummary.recommended_target_epsg)
+                      : "Not inferred"
+                  }
+                />
+                <InfoItem
+                  label="Files needing guidance"
+                  value={String(
+                    crsResolutionGuidanceSummary.file_guidance.length,
+                  )}
+                />
+                <InfoItem
+                  label="Guidance status"
+                  value={formatCodeValue(crsResolutionGuidanceSummary.status)}
+                />
+              </div>
+
+              {crsResolutionGuidanceSummary.file_guidance.length > 0 && (
+                <>
+                  <h5>Per-File CRS Guidance</h5>
+
+                  <ul className="clean-list">
+                    {crsResolutionGuidanceSummary.file_guidance.map(
+                      (item, index) => (
+                        <li key={`crs-guidance-${index}`}>
+                          <strong>{item.filename}</strong> —{" "}
+                          {formatCodeValue(item.status)}
+                          {item.detected_crs ? ` — ${item.detected_crs}` : ""}.{" "}
+                          {item.recommended_action}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+
+              {crsResolutionGuidanceSummary.recommended_actions.length > 0 && (
+                <>
+                  <h5>CRS Resolution Actions</h5>
+
+                  <ul className="clean-list">
+                    {crsResolutionGuidanceSummary.recommended_actions.map(
+                      (action, index) => (
+                        <li key={`crs-guidance-action-${index}`}>{action}</li>
+                      ),
+                    )}
                   </ul>
                 </>
               )}
@@ -832,3 +917,4 @@ function InfoItem({ label, value }: InfoItemProps) {
 }
 
 export default FileUpload;
+

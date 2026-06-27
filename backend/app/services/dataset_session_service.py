@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.services.crs_resolution_guidance_service import (
+    generate_crs_resolution_guidance_summary,
+)
 from app.services.dataset_bounds_service import generate_dataset_bounds_summary
 from app.services.dataset_task_recommendation_service import (
     generate_dataset_task_recommendation_summary,
@@ -145,6 +148,11 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 
     crs_summary = generate_dataset_crs_summary(files)
 
+    crs_resolution_guidance_summary = generate_crs_resolution_guidance_summary(
+        files=files,
+        crs_summary=crs_summary,
+    )
+
     bounds_summary = generate_dataset_bounds_summary(
         files=files,
         crs_status=crs_summary["status"],
@@ -180,6 +188,9 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 
     issues.extend(crs_summary["issues"])
     recommended_actions.extend(crs_summary["recommended_actions"])
+
+    issues.extend(crs_resolution_guidance_summary["issues"])
+    recommended_actions.extend(crs_resolution_guidance_summary["recommended_actions"])
 
     issues.extend(bounds_summary["issues"])
     recommended_actions.extend(bounds_summary["recommended_actions"])
@@ -229,6 +240,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "supporting_file_count": supporting_file_count,
         "unsupported_file_count": unsupported_file_count,
         "crs_summary": crs_summary,
+        "crs_resolution_guidance_summary": crs_resolution_guidance_summary,
         "bounds_summary": bounds_summary,
         "raster_vector_relationship_summary": raster_vector_relationship_summary,
         "task_recommendation_summary": task_recommendation_summary,
@@ -377,6 +389,17 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             "issues": [],
             "recommended_actions": [
                 "Upload raster or vector GIS files before CRS comparison."
+            ],
+        },
+        "crs_resolution_guidance_summary": {
+            "status": "not_applicable",
+            "summary": "No spatial files are available for CRS resolution guidance.",
+            "recommended_target_crs": None,
+            "recommended_target_epsg": None,
+            "file_guidance": [],
+            "issues": [],
+            "recommended_actions": [
+                "Upload raster or vector GIS files before CRS resolution guidance."
             ],
         },
         "bounds_summary": {

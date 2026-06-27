@@ -45,6 +45,33 @@ class DatasetCrsSummary(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
 
 
+class DatasetCrsFileGuidance(BaseModel):
+    """
+    Per-file CRS resolution guidance.
+    """
+
+    filename: str
+    file_category: str
+    status: str
+    detected_crs: str | None = None
+    epsg: int | None = None
+    recommended_action: str
+
+
+class DatasetCrsResolutionGuidanceSummary(BaseModel):
+    """
+    Dataset-level CRS resolution guidance summary.
+    """
+
+    status: str
+    summary: str
+    recommended_target_crs: str | None = None
+    recommended_target_epsg: int | None = None
+    file_guidance: list[DatasetCrsFileGuidance] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
+
 class DatasetBoundsPair(BaseModel):
     """
     Bounds relationship between two spatial files.
@@ -114,6 +141,7 @@ class DatasetReadinessSummary(BaseModel):
     supporting_file_count: int = 0
     unsupported_file_count: int = 0
     crs_summary: DatasetCrsSummary | None = None
+    crs_resolution_guidance_summary: DatasetCrsResolutionGuidanceSummary | None = None
     bounds_summary: DatasetBoundsSummary | None = None
     raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | None = None
     task_recommendation_summary: DatasetTaskRecommendationSummary | None = None
