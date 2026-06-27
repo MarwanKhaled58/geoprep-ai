@@ -51,6 +51,17 @@ export type DatasetBoundsSummary = {
   recommended_actions: string[];
 };
 
+export type DatasetRasterVectorRelationshipSummary = {
+  status: string;
+  summary: string;
+  raster_file_count: number;
+  vector_file_count: number;
+  relationship_type: string;
+  vector_role: string;
+  issues: string[];
+  recommended_actions: string[];
+};
+
 export type DatasetReadinessSummary = {
   readiness_score: number;
   status: string;
@@ -63,8 +74,8 @@ export type DatasetReadinessSummary = {
   unsupported_file_count: number;
   crs_summary: DatasetCrsSummary | null;
   bounds_summary: DatasetBoundsSummary | null;
+  raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | null;
 };
-
 
 export type DatasetFileSummary = {
   original_filename: string;
@@ -78,6 +89,7 @@ export type DatasetFileSummary = {
   crs_text?: string | null;
   epsg?: number | null;
   bounds?: Record<string, unknown> | null;
+  geometry_types?: string[];
 };
 
 export type DatasetSession = {

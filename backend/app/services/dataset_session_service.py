@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.services.dataset_bounds_service import generate_dataset_bounds_summary
+from app.services.raster_vector_relationship_service import (
+    generate_raster_vector_relationship_summary,
+)
 
 
 _DATASET_SESSIONS: dict[str, dict] = {}
@@ -89,7 +92,8 @@ def add_uploaded_file_to_dataset_session(
         "has_crs": crs.get("has_crs"),
         "crs_text": crs.get("crs_text"),
         "epsg": crs.get("epsg"),
-        "bounds": metadata.get("bounds"),
+        "bounds": _normalize_bounds(metadata.get("bounds")),
+        "geometry_types": metadata.get("geometry_types") or [],
     }
 
     dataset_session["files"].append(file_summary)
@@ -143,6 +147,12 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         crs_status=crs_summary["status"],
     )
 
+    raster_vector_relationship_summary = generate_raster_vector_relationship_summary(
+        files=files,
+        crs_status=crs_summary["status"],
+        bounds_status=bounds_summary["status"],
+    )
+
     issues = _build_composition_issues(
         composition=composition,
         raster_count=raster_count,
@@ -164,6 +174,11 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 
     issues.extend(bounds_summary["issues"])
     recommended_actions.extend(bounds_summary["recommended_actions"])
+
+    issues.extend(raster_vector_relationship_summary["issues"])
+    recommended_actions.extend(
+        raster_vector_relationship_summary["recommended_actions"]
+    )
 
     status = _resolve_dataset_status(
         average_score=average_score,
@@ -203,6 +218,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "unsupported_file_count": unsupported_file_count,
         "crs_summary": crs_summary,
         "bounds_summary": bounds_summary,
+        "raster_vector_relationship_summary": raster_vector_relationship_summary,
     }
 
 
@@ -359,6 +375,20 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             "issues": [],
             "recommended_actions": [
                 "Upload raster or vector GIS files before bounds comparison."
+            ],
+        },
+        "raster_vector_relationship_summary": {
+            "status": "no_spatial_relationship",
+            "summary": "No raster or vector files are available for raster-vector relationship detection.",
+            "raster_file_count": 0,
+            "vector_file_count": 0,
+            "relationship_type": "none",
+            "vector_role": "none",
+            "issues": [
+                "Dataset does not contain spatial raster or vector files."
+            ],
+            "recommended_actions": [
+                "Upload raster imagery and/or vector GIS data before GeoAI relationship analysis."
             ],
         },
     }
@@ -669,6 +699,33 @@ def _build_crs_summary_text(
     return (
         f"All {spatial_file_count} spatial file(s) use one consistent CRS definition."
     )
+
+
+def _normalize_bounds(bounds: object) -> dict | None:
+    """
+    Normalize vector and raster bounds into minx, miny, maxx, maxy.
+    """
+
+    if not isinstance(bounds, dict):
+        return None
+
+    if {"minx", "miny", "maxx", "maxy"}.issubset(bounds.keys()):
+        return {
+            "minx": bounds.get("minx"),
+            "miny": bounds.get("miny"),
+            "maxx": bounds.get("maxx"),
+            "maxy": bounds.get("maxy"),
+        }
+
+    if {"left", "bottom", "right", "top"}.issubset(bounds.keys()):
+        return {
+            "minx": bounds.get("left"),
+            "miny": bounds.get("bottom"),
+            "maxx": bounds.get("right"),
+            "maxy": bounds.get("top"),
+        }
+
+    return None
 
 
 def _deduplicate_text_items(items: list[str]) -> list[str]:

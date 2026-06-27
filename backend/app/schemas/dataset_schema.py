@@ -67,6 +67,19 @@ class DatasetBoundsSummary(BaseModel):
     issues: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
 
+class DatasetRasterVectorRelationshipSummary(BaseModel):
+    """
+    Dataset-level raster-vector relationship summary.
+    """
+
+    status: str
+    summary: str
+    raster_file_count: int
+    vector_file_count: int
+    relationship_type: str
+    vector_role: str
+    issues: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
 
 class DatasetReadinessSummary(BaseModel):
     """
@@ -84,6 +97,8 @@ class DatasetReadinessSummary(BaseModel):
     unsupported_file_count: int = 0
     crs_summary: DatasetCrsSummary | None = None
     bounds_summary: DatasetBoundsSummary | None = None
+    raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | None = None
+    
 
 
 class DatasetSession(BaseModel):
@@ -111,4 +126,3 @@ class CreateDatasetSessionResponse(BaseModel):
     status: str
     message: str
     dataset_session: DatasetSession
-    

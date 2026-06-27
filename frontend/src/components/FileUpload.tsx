@@ -74,6 +74,8 @@ function FileUpload() {
   const datasetReadinessSummary = datasetSession?.readiness_summary;
   const crsSummary = datasetReadinessSummary?.crs_summary;
   const boundsSummary = datasetReadinessSummary?.bounds_summary;
+  const rasterVectorRelationshipSummary =
+    datasetReadinessSummary?.raster_vector_relationship_summary;
 
   return (
     <section className="upload-section">
@@ -84,8 +86,8 @@ function FileUpload() {
           <p className="section-description">
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
-            analyze readiness, compare CRS, review bounds, and recommend next
-            actions.
+            analyze readiness, compare CRS, review bounds, detect raster-vector
+            relationships, and recommend next actions.
           </p>
         </div>
 
@@ -335,6 +337,80 @@ function FileUpload() {
                     {boundsSummary.files_missing_bounds.map((filename) => (
                       <li key={`missing-bounds-${filename}`}>{filename}</li>
                     ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {rasterVectorRelationshipSummary && (
+            <div className="relationship-review-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>Raster-Vector Relationship</h4>
+                  <p className="small-muted">
+                    GeoAI readiness relationship between imagery and vector
+                    data.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${rasterVectorRelationshipSummary.status}`}
+                >
+                  {rasterVectorRelationshipSummary.status}
+                </span>
+              </div>
+
+              <p>{rasterVectorRelationshipSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Raster files"
+                  value={String(
+                    rasterVectorRelationshipSummary.raster_file_count,
+                  )}
+                />
+                <InfoItem
+                  label="Vector files"
+                  value={String(
+                    rasterVectorRelationshipSummary.vector_file_count,
+                  )}
+                />
+                <InfoItem
+                  label="Relationship type"
+                  value={rasterVectorRelationshipSummary.relationship_type}
+                />
+                <InfoItem
+                  label="Vector role"
+                  value={rasterVectorRelationshipSummary.vector_role}
+                />
+              </div>
+
+              {rasterVectorRelationshipSummary.issues.length > 0 && (
+                <>
+                  <h5>Relationship Issues</h5>
+
+                  <ul className="clean-list">
+                    {rasterVectorRelationshipSummary.issues.map(
+                      (issue, index) => (
+                        <li key={`relationship-issue-${index}`}>{issue}</li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+
+              {rasterVectorRelationshipSummary.recommended_actions.length >
+                0 && (
+                <>
+                  <h5>Relationship Recommended Actions</h5>
+
+                  <ul className="clean-list">
+                    {rasterVectorRelationshipSummary.recommended_actions.map(
+                      (action, index) => (
+                        <li key={`relationship-action-${index}`}>{action}</li>
+                      ),
+                    )}
                   </ul>
                 </>
               )}

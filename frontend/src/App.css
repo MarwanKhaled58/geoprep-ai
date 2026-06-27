@@ -253,3 +253,29 @@
   border-radius: 18px;
   background: #fbfcff;
 }
+.status-candidate_geoai_dataset {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-relationship_needs_review,
+.status-blocked_by_bounds_review,
+.status-raster_only,
+.status-vector_only {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-blocked_by_crs_review,
+.status-no_spatial_relationship {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.relationship-review-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fafffb;
+}
