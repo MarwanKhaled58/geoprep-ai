@@ -380,11 +380,15 @@ function FileUpload() {
                 />
                 <InfoItem
                   label="Relationship type"
-                  value={rasterVectorRelationshipSummary.relationship_type}
+                  value={formatCodeValue(
+                    rasterVectorRelationshipSummary.relationship_type,
+                  )}
                 />
                 <InfoItem
                   label="Vector role"
-                  value={rasterVectorRelationshipSummary.vector_role}
+                  value={formatCodeValue(
+                    rasterVectorRelationshipSummary.vector_role,
+                  )}
                 />
               </div>
 
@@ -442,23 +446,25 @@ function FileUpload() {
               <div className="info-grid compact-grid">
                 <InfoItem
                   label="Recommended task"
-                  value={taskRecommendationSummary.recommended_task}
+                  value={formatCodeValue(
+                    taskRecommendationSummary.recommended_task,
+                  )}
                 />
                 <InfoItem
                   label="Confidence"
-                  value={taskRecommendationSummary.confidence}
+                  value={formatCodeValue(taskRecommendationSummary.confidence)}
                 />
                 <InfoItem
                   label="Blockers"
                   value={
                     taskRecommendationSummary.blockers.length > 0
-                      ? taskRecommendationSummary.blockers.join(", ")
+                      ? formatCodeList(taskRecommendationSummary.blockers)
                       : "None"
                   }
                 />
                 <InfoItem
                   label="Task status"
-                  value={taskRecommendationSummary.status}
+                  value={formatCodeValue(taskRecommendationSummary.status)}
                 />
               </div>
 
@@ -713,6 +719,14 @@ function getGisType(result: UploadResponse): string {
   return typeof gisType === "string" && gisType.length > 0
     ? gisType
     : "non-gis";
+}
+
+function formatCodeValue(value: string): string {
+  return value.replaceAll("_", " ");
+}
+
+function formatCodeList(values: string[]): string {
+  return values.map((value) => formatCodeValue(value)).join(", ");
 }
 
 function formatCrsLabel(crsLabel: string): string {
