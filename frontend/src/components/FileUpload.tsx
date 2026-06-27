@@ -75,6 +75,8 @@ function FileUpload() {
   const crsSummary = datasetReadinessSummary?.crs_summary;
   const crsResolutionGuidanceSummary =
     datasetReadinessSummary?.crs_resolution_guidance_summary;
+  const preparationPlanSummary =
+    datasetReadinessSummary?.preparation_plan_summary;
   const boundsSummary = datasetReadinessSummary?.bounds_summary;
   const rasterVectorRelationshipSummary =
     datasetReadinessSummary?.raster_vector_relationship_summary;
@@ -92,7 +94,7 @@ function FileUpload() {
             GeoPrep AI will classify them, inspect GIS metadata when possible,
             analyze readiness, compare CRS, provide CRS resolution guidance,
             review bounds, detect raster-vector relationships, recommend GeoAI
-            tasks, and recommend next actions.
+            tasks, generate a preparation plan, and recommend next actions.
           </p>
         </div>
 
@@ -581,6 +583,111 @@ function FileUpload() {
             </div>
           )}
 
+          {preparationPlanSummary && (
+            <div className="preparation-plan-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>Dataset Preparation Plan</h4>
+                  <p className="small-muted">
+                    Ordered workflow for preparing this dataset for GeoAI use.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${preparationPlanSummary.status}`}
+                >
+                  {formatCodeValue(preparationPlanSummary.status)}
+                </span>
+              </div>
+
+              <p>{preparationPlanSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Plan status"
+                  value={formatCodeValue(preparationPlanSummary.status)}
+                />
+                <InfoItem
+                  label="Step count"
+                  value={String(preparationPlanSummary.steps.length)}
+                />
+                <InfoItem
+                  label="Blockers"
+                  value={
+                    preparationPlanSummary.blockers.length > 0
+                      ? formatCodeList(preparationPlanSummary.blockers)
+                      : "None"
+                  }
+                />
+                <InfoItem
+                  label="First step"
+                  value={
+                    preparationPlanSummary.steps.length > 0
+                      ? preparationPlanSummary.steps[0].title
+                      : "Not available"
+                  }
+                />
+              </div>
+
+              {preparationPlanSummary.steps.length > 0 && (
+                <>
+                  <h5>Preparation Steps</h5>
+
+                  <div className="plan-step-list">
+                    {preparationPlanSummary.steps.map((step) => (
+                      <div
+                        className="plan-step-card"
+                        key={`plan-step-${step.order}`}
+                      >
+                        <div className="plan-step-header">
+                          <span className="plan-step-number">
+                            Step {step.order}
+                          </span>
+                          <span className={`status-pill status-${step.status}`}>
+                            {formatCodeValue(step.status)}
+                          </span>
+                        </div>
+
+                        <h5>{step.title}</h5>
+                        <p>{step.description}</p>
+
+                        <p className="expected-result">
+                          Expected result: {step.expected_result}
+                        </p>
+
+                        {step.actions.length > 0 && (
+                          <ul className="clean-list">
+                            {step.actions.map((action, index) => (
+                              <li
+                                key={`plan-step-${step.order}-action-${index}`}
+                              >
+                                {action}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {preparationPlanSummary.recommended_actions.length > 0 && (
+                <>
+                  <h5>Plan Recommended Actions</h5>
+
+                  <ul className="clean-list">
+                    {preparationPlanSummary.recommended_actions.map(
+                      (action, index) => (
+                        <li key={`plan-action-${index}`}>{action}</li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="report-columns">
             <div>
               <h4>Dataset Issues</h4>
@@ -917,4 +1024,3 @@ function InfoItem({ label, value }: InfoItemProps) {
 }
 
 export default FileUpload;
-

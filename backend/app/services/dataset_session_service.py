@@ -5,6 +5,9 @@ from app.services.crs_resolution_guidance_service import (
     generate_crs_resolution_guidance_summary,
 )
 from app.services.dataset_bounds_service import generate_dataset_bounds_summary
+from app.services.dataset_preparation_plan_service import (
+    generate_dataset_preparation_plan_summary,
+)
 from app.services.dataset_task_recommendation_service import (
     generate_dataset_task_recommendation_summary,
 )
@@ -170,6 +173,23 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         bounds_status=bounds_summary["status"],
     )
 
+    status = _resolve_dataset_status(
+        average_score=average_score,
+        composition=composition,
+        unsupported_file_count=unsupported_file_count,
+        crs_status=crs_summary["status"],
+        bounds_status=bounds_summary["status"],
+    )
+
+    preparation_plan_summary = generate_dataset_preparation_plan_summary(
+        dataset_status=status,
+        crs_summary=crs_summary,
+        crs_resolution_guidance_summary=crs_resolution_guidance_summary,
+        bounds_summary=bounds_summary,
+        raster_vector_relationship_summary=raster_vector_relationship_summary,
+        task_recommendation_summary=task_recommendation_summary,
+    )
+
     issues = _build_composition_issues(
         composition=composition,
         raster_count=raster_count,
@@ -203,13 +223,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     issues.extend(task_recommendation_summary["issues"])
     recommended_actions.extend(task_recommendation_summary["recommended_actions"])
 
-    status = _resolve_dataset_status(
-        average_score=average_score,
-        composition=composition,
-        unsupported_file_count=unsupported_file_count,
-        crs_status=crs_summary["status"],
-        bounds_status=bounds_summary["status"],
-    )
+    recommended_actions.extend(preparation_plan_summary["recommended_actions"])
 
     adjusted_score = _adjust_dataset_score_for_composition(
         average_score=average_score,
@@ -241,6 +255,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "unsupported_file_count": unsupported_file_count,
         "crs_summary": crs_summary,
         "crs_resolution_guidance_summary": crs_resolution_guidance_summary,
+        "preparation_plan_summary": preparation_plan_summary,
         "bounds_summary": bounds_summary,
         "raster_vector_relationship_summary": raster_vector_relationship_summary,
         "task_recommendation_summary": task_recommendation_summary,
@@ -400,6 +415,15 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             "issues": [],
             "recommended_actions": [
                 "Upload raster or vector GIS files before CRS resolution guidance."
+            ],
+        },
+        "preparation_plan_summary": {
+            "status": "plan_not_available",
+            "summary": "No preparation plan is available until dataset files are uploaded.",
+            "blockers": ["no_dataset_files"],
+            "steps": [],
+            "recommended_actions": [
+                "Upload raster imagery and/or vector GIS data before generating a preparation plan."
             ],
         },
         "bounds_summary": {
@@ -790,4 +814,5 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
             deduplicated.append(item)
 
     return deduplicated
+
     

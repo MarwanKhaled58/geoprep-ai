@@ -72,6 +72,31 @@ class DatasetCrsResolutionGuidanceSummary(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
 
 
+class DatasetPreparationPlanStep(BaseModel):
+    """
+    One dataset preparation plan step.
+    """
+
+    order: int
+    title: str
+    status: str
+    description: str
+    expected_result: str
+    actions: list[str] = Field(default_factory=list)
+
+
+class DatasetPreparationPlanSummary(BaseModel):
+    """
+    Dataset-level preparation plan summary.
+    """
+
+    status: str
+    summary: str
+    blockers: list[str] = Field(default_factory=list)
+    steps: list[DatasetPreparationPlanStep] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
+
 class DatasetBoundsPair(BaseModel):
     """
     Bounds relationship between two spatial files.
@@ -142,6 +167,7 @@ class DatasetReadinessSummary(BaseModel):
     unsupported_file_count: int = 0
     crs_summary: DatasetCrsSummary | None = None
     crs_resolution_guidance_summary: DatasetCrsResolutionGuidanceSummary | None = None
+    preparation_plan_summary: DatasetPreparationPlanSummary | None = None
     bounds_summary: DatasetBoundsSummary | None = None
     raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | None = None
     task_recommendation_summary: DatasetTaskRecommendationSummary | None = None

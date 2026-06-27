@@ -54,6 +54,23 @@ export type DatasetCrsResolutionGuidanceSummary = {
   recommended_actions: string[];
 };
 
+export type DatasetPreparationPlanStep = {
+  order: number;
+  title: string;
+  status: string;
+  description: string;
+  expected_result: string;
+  actions: string[];
+};
+
+export type DatasetPreparationPlanSummary = {
+  status: string;
+  summary: string;
+  blockers: string[];
+  steps: DatasetPreparationPlanStep[];
+  recommended_actions: string[];
+};
+
 export type DatasetBoundsPair = {
   first_file: string;
   second_file: string;
@@ -104,6 +121,7 @@ export type DatasetReadinessSummary = {
   unsupported_file_count: number;
   crs_summary: DatasetCrsSummary | null;
   crs_resolution_guidance_summary: DatasetCrsResolutionGuidanceSummary | null;
+  preparation_plan_summary: DatasetPreparationPlanSummary | null;
   bounds_summary: DatasetBoundsSummary | null;
   raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | null;
   task_recommendation_summary: DatasetTaskRecommendationSummary | null;

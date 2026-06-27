@@ -182,127 +182,6 @@
   margin-top: 12px;
 }
 
-@media (max-width: 800px) {
-  .report-main {
-    grid-template-columns: 1fr;
-  }
-
-  .report-columns {
-    grid-template-columns: 1fr;
-  }
-
-  .file-report-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metadata-summary-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.status-consistent_crs,
-.status-ready_for_bounds_check {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-unresolved_crs,
-.status-no_spatial_files {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-mixed_crs,
-.status-missing_crs,
-.status-needs_crs_review {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.crs-review-box {
-  margin-top: 24px;
-  padding: 18px;
-  border: 1px solid #dbe7fb;
-  border-radius: 18px;
-  background: #f8fbff;
-}
-
-.status-overlapping_bounds,
-.status-ready_for_alignment_check {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-single_spatial_file,
-.status-blocked_by_crs_review,
-.status-partial_spatial_overlap {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-missing_bounds,
-.status-no_spatial_overlap,
-.status-needs_spatial_review {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.bounds-review-box {
-  margin-top: 24px;
-  padding: 18px;
-  border: 1px solid #dbe7fb;
-  border-radius: 18px;
-  background: #fbfcff;
-}
-.status-candidate_geoai_dataset {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-relationship_needs_review,
-.status-blocked_by_bounds_review,
-.status-raster_only,
-.status-vector_only {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-blocked_by_crs_review,
-.status-no_spatial_relationship {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.relationship-review-box {
-  margin-top: 24px;
-  padding: 18px;
-  border: 1px solid #dbe7fb;
-  border-radius: 18px;
-  background: #fafffb;
-}
-.status-task_candidate {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-task_needs_review,
-.status-blocked_by_relationship_review {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-blocked_by_crs_review,
-.status-blocked_by_bounds_review {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.task-recommendation-box {
-  margin-top: 24px;
-  padding: 18px;
-  border: 1px solid #dbe7fb;
-  border-radius: 18px;
-  background: #fffefa;
-}
 .info-grid {
   align-items: stretch;
 }
@@ -362,33 +241,115 @@
   margin-top: 0;
 }
 
-.relationship-review-box,
-.task-recommendation-box,
-.bounds-review-box,
-.crs-review-box {
-  overflow-wrap: anywhere;
-}
+/* CRS statuses */
 
-.task-recommendation-box .info-grid,
-.relationship-review-box .info-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (max-width: 800px) {
-  .task-recommendation-box .info-grid,
-  .relationship-review-box .info-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.status-consistent_crs,
+.status-ready_for_bounds_check,
 .status-crs_ready {
   background: #dcfce7;
   color: #166534;
 }
 
+.status-unresolved_crs,
+.status-no_spatial_files,
 .status-crs_resolution_required,
 .status-crs_needs_review {
   background: #fef3c7;
   color: #92400e;
+}
+
+.status-mixed_crs,
+.status-missing_crs,
+.status-needs_crs_review {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Bounds statuses */
+
+.status-overlapping_bounds,
+.status-ready_for_alignment_check {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-single_spatial_file,
+.status-partial_spatial_overlap {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-missing_bounds,
+.status-no_spatial_overlap,
+.status-needs_spatial_review {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Raster-vector statuses */
+
+.status-candidate_geoai_dataset {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-relationship_needs_review,
+.status-blocked_by_bounds_review,
+.status-raster_only,
+.status-vector_only {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-blocked_by_crs_review,
+.status-no_spatial_relationship {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Task statuses */
+
+.status-task_candidate {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-task_needs_review,
+.status-blocked_by_relationship_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Preparation plan statuses */
+
+.status-plan_ready {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-plan_needs_review,
+.status-plan_not_available,
+.status-planned {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-blocked,
+.status-blocked_by_crs,
+.status-required {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Report section boxes */
+
+.crs-review-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #f8fbff;
+  overflow-wrap: anywhere;
 }
 
 .crs-guidance-box {
@@ -398,4 +359,122 @@
   border-radius: 18px;
   background: #fbfdff;
   overflow-wrap: anywhere;
+}
+
+.bounds-review-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fbfcff;
+  overflow-wrap: anywhere;
+}
+
+.relationship-review-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fafffb;
+  overflow-wrap: anywhere;
+}
+
+.task-recommendation-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fffefa;
+  overflow-wrap: anywhere;
+}
+
+.preparation-plan-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fbfbff;
+  overflow-wrap: anywhere;
+}
+
+.task-recommendation-box .info-grid,
+.relationship-review-box .info-grid,
+.preparation-plan-box .info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Preparation plan cards */
+
+.plan-step-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.plan-step-card {
+  padding: 16px;
+  border: 1px solid #e5eaf2;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.plan-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.plan-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.expected-result {
+  font-weight: 700;
+  color: #334155;
+}
+
+@media (max-width: 800px) {
+  .report-main {
+    grid-template-columns: 1fr;
+  }
+
+  .report-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .file-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metadata-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-recommendation-box .info-grid,
+  .relationship-review-box .info-grid,
+  .preparation-plan-box .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.plan-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-step-header .status-pill {
+  margin-left: auto;
 }
