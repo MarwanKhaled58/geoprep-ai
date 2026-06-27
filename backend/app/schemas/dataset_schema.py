@@ -17,6 +17,7 @@ class DatasetFileSummary(BaseModel):
     crs_text: str | None = None
     epsg: int | None = None
     bounds: dict | None = None
+    geometry_types: list[str] = Field(default_factory=list)
 
 
 class DatasetCrsGroup(BaseModel):
@@ -67,6 +68,7 @@ class DatasetBoundsSummary(BaseModel):
     issues: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
 
+
 class DatasetRasterVectorRelationshipSummary(BaseModel):
     """
     Dataset-level raster-vector relationship summary.
@@ -80,6 +82,22 @@ class DatasetRasterVectorRelationshipSummary(BaseModel):
     vector_role: str
     issues: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
+
+
+class DatasetTaskRecommendationSummary(BaseModel):
+    """
+    Dataset-level GeoAI task recommendation summary.
+    """
+
+    status: str
+    summary: str
+    recommended_task: str
+    confidence: str
+    blockers: list[str] = Field(default_factory=list)
+    inputs_used: dict = Field(default_factory=dict)
+    issues: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
 
 class DatasetReadinessSummary(BaseModel):
     """
@@ -98,7 +116,7 @@ class DatasetReadinessSummary(BaseModel):
     crs_summary: DatasetCrsSummary | None = None
     bounds_summary: DatasetBoundsSummary | None = None
     raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | None = None
-    
+    task_recommendation_summary: DatasetTaskRecommendationSummary | None = None
 
 
 class DatasetSession(BaseModel):
@@ -126,3 +144,4 @@ class CreateDatasetSessionResponse(BaseModel):
     status: str
     message: str
     dataset_session: DatasetSession
+    

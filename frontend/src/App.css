@@ -279,3 +279,27 @@
   border-radius: 18px;
   background: #fafffb;
 }
+.status-task_candidate {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-task_needs_review,
+.status-blocked_by_relationship_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-blocked_by_crs_review,
+.status-blocked_by_bounds_review {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.task-recommendation-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fffefa;
+}

@@ -2,6 +2,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.services.dataset_bounds_service import generate_dataset_bounds_summary
+from app.services.dataset_task_recommendation_service import (
+    generate_dataset_task_recommendation_summary,
+)
 from app.services.raster_vector_relationship_service import (
     generate_raster_vector_relationship_summary,
 )
@@ -153,6 +156,12 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         bounds_status=bounds_summary["status"],
     )
 
+    task_recommendation_summary = generate_dataset_task_recommendation_summary(
+        relationship_summary=raster_vector_relationship_summary,
+        crs_status=crs_summary["status"],
+        bounds_status=bounds_summary["status"],
+    )
+
     issues = _build_composition_issues(
         composition=composition,
         raster_count=raster_count,
@@ -179,6 +188,9 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     recommended_actions.extend(
         raster_vector_relationship_summary["recommended_actions"]
     )
+
+    issues.extend(task_recommendation_summary["issues"])
+    recommended_actions.extend(task_recommendation_summary["recommended_actions"])
 
     status = _resolve_dataset_status(
         average_score=average_score,
@@ -219,6 +231,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "crs_summary": crs_summary,
         "bounds_summary": bounds_summary,
         "raster_vector_relationship_summary": raster_vector_relationship_summary,
+        "task_recommendation_summary": task_recommendation_summary,
     }
 
 
@@ -389,6 +402,20 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             ],
             "recommended_actions": [
                 "Upload raster imagery and/or vector GIS data before GeoAI relationship analysis."
+            ],
+        },
+        "task_recommendation_summary": {
+            "status": "task_needs_review",
+            "summary": "No GeoAI task can be recommended until dataset files are uploaded.",
+            "recommended_task": "task_needs_manual_review",
+            "confidence": "low",
+            "blockers": ["no_dataset_files"],
+            "inputs_used": {},
+            "issues": [
+                "No dataset files are available for task recommendation."
+            ],
+            "recommended_actions": [
+                "Upload raster imagery and/or vector GIS data before task recommendation."
             ],
         },
     }

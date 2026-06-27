@@ -76,6 +76,8 @@ function FileUpload() {
   const boundsSummary = datasetReadinessSummary?.bounds_summary;
   const rasterVectorRelationshipSummary =
     datasetReadinessSummary?.raster_vector_relationship_summary;
+  const taskRecommendationSummary =
+    datasetReadinessSummary?.task_recommendation_summary;
 
   return (
     <section className="upload-section">
@@ -87,7 +89,7 @@ function FileUpload() {
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
             analyze readiness, compare CRS, review bounds, detect raster-vector
-            relationships, and recommend next actions.
+            relationships, recommend GeoAI tasks, and recommend next actions.
           </p>
         </div>
 
@@ -409,6 +411,77 @@ function FileUpload() {
                     {rasterVectorRelationshipSummary.recommended_actions.map(
                       (action, index) => (
                         <li key={`relationship-action-${index}`}>{action}</li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {taskRecommendationSummary && (
+            <div className="task-recommendation-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>Dataset Task Recommendation</h4>
+                  <p className="small-muted">
+                    Suggested GeoAI task based on dataset composition, CRS,
+                    bounds, and raster-vector relationship.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${taskRecommendationSummary.status}`}
+                >
+                  {taskRecommendationSummary.status}
+                </span>
+              </div>
+
+              <p>{taskRecommendationSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Recommended task"
+                  value={taskRecommendationSummary.recommended_task}
+                />
+                <InfoItem
+                  label="Confidence"
+                  value={taskRecommendationSummary.confidence}
+                />
+                <InfoItem
+                  label="Blockers"
+                  value={
+                    taskRecommendationSummary.blockers.length > 0
+                      ? taskRecommendationSummary.blockers.join(", ")
+                      : "None"
+                  }
+                />
+                <InfoItem
+                  label="Task status"
+                  value={taskRecommendationSummary.status}
+                />
+              </div>
+
+              {taskRecommendationSummary.issues.length > 0 && (
+                <>
+                  <h5>Task Recommendation Issues</h5>
+
+                  <ul className="clean-list">
+                    {taskRecommendationSummary.issues.map((issue, index) => (
+                      <li key={`task-issue-${index}`}>{issue}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              {taskRecommendationSummary.recommended_actions.length > 0 && (
+                <>
+                  <h5>Task Recommended Actions</h5>
+
+                  <ul className="clean-list">
+                    {taskRecommendationSummary.recommended_actions.map(
+                      (action, index) => (
+                        <li key={`task-action-${index}`}>{action}</li>
                       ),
                     )}
                   </ul>

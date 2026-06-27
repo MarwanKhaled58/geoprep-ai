@@ -62,6 +62,17 @@ export type DatasetRasterVectorRelationshipSummary = {
   recommended_actions: string[];
 };
 
+export type DatasetTaskRecommendationSummary = {
+  status: string;
+  summary: string;
+  recommended_task: string;
+  confidence: string;
+  blockers: string[];
+  inputs_used: Record<string, unknown>;
+  issues: string[];
+  recommended_actions: string[];
+};
+
 export type DatasetReadinessSummary = {
   readiness_score: number;
   status: string;
@@ -75,6 +86,7 @@ export type DatasetReadinessSummary = {
   crs_summary: DatasetCrsSummary | null;
   bounds_summary: DatasetBoundsSummary | null;
   raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | null;
+  task_recommendation_summary: DatasetTaskRecommendationSummary | null;
 };
 
 export type DatasetFileSummary = {
