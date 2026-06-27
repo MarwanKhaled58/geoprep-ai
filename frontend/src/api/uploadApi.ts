@@ -71,6 +71,28 @@ export type DatasetPreparationPlanSummary = {
   recommended_actions: string[];
 };
 
+export type DatasetCrsCorrectionFileInstruction = {
+  filename: string;
+  source_crs?: string | null;
+  detected_crs?: string | null;
+  target_crs?: string | null;
+  recommended_crs?: string | null;
+  reason: string;
+};
+
+export type DatasetCrsCorrectionInstructionSummary = {
+  status: string;
+  summary: string;
+  target_crs: string | null;
+  target_epsg: number | null;
+  files_to_reproject: DatasetCrsCorrectionFileInstruction[];
+  files_to_confirm: DatasetCrsCorrectionFileInstruction[];
+  arcgis_pro_steps: string[];
+  qgis_steps: string[];
+  python_steps: string[];
+  recommended_actions: string[];
+};
+
 export type DatasetBoundsPair = {
   first_file: string;
   second_file: string;
@@ -121,6 +143,7 @@ export type DatasetReadinessSummary = {
   unsupported_file_count: number;
   crs_summary: DatasetCrsSummary | null;
   crs_resolution_guidance_summary: DatasetCrsResolutionGuidanceSummary | null;
+  crs_correction_instruction_summary: DatasetCrsCorrectionInstructionSummary | null;
   preparation_plan_summary: DatasetPreparationPlanSummary | null;
   bounds_summary: DatasetBoundsSummary | null;
   raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | null;

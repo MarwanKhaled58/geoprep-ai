@@ -75,6 +75,8 @@ function FileUpload() {
   const crsSummary = datasetReadinessSummary?.crs_summary;
   const crsResolutionGuidanceSummary =
     datasetReadinessSummary?.crs_resolution_guidance_summary;
+  const crsCorrectionInstructionSummary =
+    datasetReadinessSummary?.crs_correction_instruction_summary;
   const preparationPlanSummary =
     datasetReadinessSummary?.preparation_plan_summary;
   const boundsSummary = datasetReadinessSummary?.bounds_summary;
@@ -93,8 +95,9 @@ function FileUpload() {
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
             analyze readiness, compare CRS, provide CRS resolution guidance,
-            review bounds, detect raster-vector relationships, recommend GeoAI
-            tasks, generate a preparation plan, and recommend next actions.
+            generate CRS correction instructions, review bounds, detect
+            raster-vector relationships, recommend GeoAI tasks, generate a
+            preparation plan, and recommend next actions.
           </p>
         </div>
 
@@ -311,7 +314,9 @@ function FileUpload() {
                   label="Recommended EPSG"
                   value={
                     crsResolutionGuidanceSummary.recommended_target_epsg !== null
-                      ? String(crsResolutionGuidanceSummary.recommended_target_epsg)
+                      ? String(
+                          crsResolutionGuidanceSummary.recommended_target_epsg,
+                        )
                       : "Not inferred"
                   }
                 />
@@ -354,6 +359,126 @@ function FileUpload() {
                     {crsResolutionGuidanceSummary.recommended_actions.map(
                       (action, index) => (
                         <li key={`crs-guidance-action-${index}`}>{action}</li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+
+          {crsCorrectionInstructionSummary && (
+            <div className="crs-correction-box">
+              <div className="card-header-row">
+                <div>
+                  <h4>CRS Correction Instructions</h4>
+                  <p className="small-muted">
+                    Tool-specific reprojection guidance for ArcGIS Pro, QGIS,
+                    and Python.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${crsCorrectionInstructionSummary.status}`}
+                >
+                  {formatCodeValue(crsCorrectionInstructionSummary.status)}
+                </span>
+              </div>
+
+              <p>{crsCorrectionInstructionSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Target CRS"
+                  value={
+                    crsCorrectionInstructionSummary.target_crs ?? "Not inferred"
+                  }
+                />
+                <InfoItem
+                  label="Target EPSG"
+                  value={
+                    crsCorrectionInstructionSummary.target_epsg !== null
+                      ? String(crsCorrectionInstructionSummary.target_epsg)
+                      : "Not inferred"
+                  }
+                />
+                <InfoItem
+                  label="Files to reproject"
+                  value={String(
+                    crsCorrectionInstructionSummary.files_to_reproject.length,
+                  )}
+                />
+                <InfoItem
+                  label="Files to confirm"
+                  value={String(
+                    crsCorrectionInstructionSummary.files_to_confirm.length,
+                  )}
+                />
+              </div>
+
+              {crsCorrectionInstructionSummary.files_to_reproject.length > 0 && (
+                <>
+                  <h5>Files To Reproject</h5>
+
+                  <ul className="clean-list">
+                    {crsCorrectionInstructionSummary.files_to_reproject.map(
+                      (item, index) => (
+                        <li key={`crs-reproject-${index}`}>
+                          <strong>{item.filename}</strong> — {item.source_crs} →{" "}
+                          {item.target_crs}. {item.reason}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+
+              {crsCorrectionInstructionSummary.files_to_confirm.length > 0 && (
+                <>
+                  <h5>Files To Confirm</h5>
+
+                  <ul className="clean-list">
+                    {crsCorrectionInstructionSummary.files_to_confirm.map(
+                      (item, index) => (
+                        <li key={`crs-confirm-${index}`}>
+                          <strong>{item.filename}</strong> —{" "}
+                          {item.detected_crs ??
+                            item.recommended_crs ??
+                            "Unknown CRS"}
+                          . {item.reason}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </>
+              )}
+
+              <div className="tool-instruction-grid">
+                <ToolInstructionCard
+                  title="ArcGIS Pro"
+                  steps={crsCorrectionInstructionSummary.arcgis_pro_steps}
+                />
+                <ToolInstructionCard
+                  title="QGIS"
+                  steps={crsCorrectionInstructionSummary.qgis_steps}
+                />
+                <ToolInstructionCard
+                  title="Python / GeoPandas"
+                  steps={crsCorrectionInstructionSummary.python_steps}
+                />
+              </div>
+
+              {crsCorrectionInstructionSummary.recommended_actions.length >
+                0 && (
+                <>
+                  <h5>CRS Correction Actions</h5>
+
+                  <ul className="clean-list">
+                    {crsCorrectionInstructionSummary.recommended_actions.map(
+                      (action, index) => (
+                        <li key={`crs-correction-action-${index}`}>
+                          {action}
+                        </li>
                       ),
                     )}
                   </ul>
@@ -1007,6 +1132,29 @@ function getImportantMetadata(
   }
 
   return items;
+}
+
+type ToolInstructionCardProps = {
+  title: string;
+  steps: string[];
+};
+
+function ToolInstructionCard({ title, steps }: ToolInstructionCardProps) {
+  return (
+    <div className="tool-instruction-card">
+      <h5>{title}</h5>
+
+      {steps.length === 0 ? (
+        <p className="small-muted">No instructions available.</p>
+      ) : (
+        <ol className="instruction-list">
+          {steps.map((step, index) => (
+            <li key={`${title}-instruction-${index}`}>{step}</li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
 }
 
 type InfoItemProps = {

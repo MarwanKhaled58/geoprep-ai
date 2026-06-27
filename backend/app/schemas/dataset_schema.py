@@ -97,6 +97,40 @@ class DatasetPreparationPlanSummary(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
 
 
+class DatasetCrsCorrectionFileInstruction(BaseModel):
+    """
+    File-level CRS correction instruction.
+    """
+
+    filename: str
+    source_crs: str | None = None
+    detected_crs: str | None = None
+    target_crs: str | None = None
+    recommended_crs: str | None = None
+    reason: str
+
+
+class DatasetCrsCorrectionInstructionSummary(BaseModel):
+    """
+    Dataset-level CRS correction instruction summary.
+    """
+
+    status: str
+    summary: str
+    target_crs: str | None = None
+    target_epsg: int | None = None
+    files_to_reproject: list[DatasetCrsCorrectionFileInstruction] = Field(
+        default_factory=list
+    )
+    files_to_confirm: list[DatasetCrsCorrectionFileInstruction] = Field(
+        default_factory=list
+    )
+    arcgis_pro_steps: list[str] = Field(default_factory=list)
+    qgis_steps: list[str] = Field(default_factory=list)
+    python_steps: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)
+
+
 class DatasetBoundsPair(BaseModel):
     """
     Bounds relationship between two spatial files.
@@ -167,9 +201,14 @@ class DatasetReadinessSummary(BaseModel):
     unsupported_file_count: int = 0
     crs_summary: DatasetCrsSummary | None = None
     crs_resolution_guidance_summary: DatasetCrsResolutionGuidanceSummary | None = None
+    crs_correction_instruction_summary: (
+        DatasetCrsCorrectionInstructionSummary | None
+    ) = None
     preparation_plan_summary: DatasetPreparationPlanSummary | None = None
     bounds_summary: DatasetBoundsSummary | None = None
-    raster_vector_relationship_summary: DatasetRasterVectorRelationshipSummary | None = None
+    raster_vector_relationship_summary: (
+        DatasetRasterVectorRelationshipSummary | None
+    ) = None
     task_recommendation_summary: DatasetTaskRecommendationSummary | None = None
 
 

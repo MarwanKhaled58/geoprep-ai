@@ -265,6 +265,24 @@
   color: #991b1b;
 }
 
+/* CRS correction statuses */
+
+.status-correction_required {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-confirmation_required,
+.status-manual_review_required {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-not_required {
+  background: #dcfce7;
+  color: #166534;
+}
+
 /* Bounds statuses */
 
 .status-overlapping_bounds,
@@ -361,6 +379,15 @@
   overflow-wrap: anywhere;
 }
 
+.crs-correction-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  background: #fffaff;
+  overflow-wrap: anywhere;
+}
+
 .bounds-review-box {
   margin-top: 24px;
   padding: 18px;
@@ -399,8 +426,32 @@
 
 .task-recommendation-box .info-grid,
 .relationship-review-box .info-grid,
-.preparation-plan-box .info-grid {
+.preparation-plan-box .info-grid,
+.crs-correction-box .info-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* CRS correction instruction cards */
+
+.tool-instruction-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.tool-instruction-card {
+  padding: 16px;
+  border: 1px solid #e5eaf2;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.instruction-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #334155;
+  line-height: 1.7;
 }
 
 /* Preparation plan cards */
@@ -424,6 +475,11 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-step-header .status-pill {
+  margin-left: auto;
 }
 
 .plan-step-number {
@@ -462,7 +518,12 @@
 
   .task-recommendation-box .info-grid,
   .relationship-review-box .info-grid,
-  .preparation-plan-box .info-grid {
+  .preparation-plan-box .info-grid,
+  .crs-correction-box .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-instruction-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.services.crs_correction_instruction_service import (
+    generate_crs_correction_instruction_summary,
+)
 from app.services.crs_resolution_guidance_service import (
     generate_crs_resolution_guidance_summary,
 )
@@ -156,6 +159,13 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         crs_summary=crs_summary,
     )
 
+    crs_correction_instruction_summary = (
+        generate_crs_correction_instruction_summary(
+            crs_summary=crs_summary,
+            crs_resolution_guidance_summary=crs_resolution_guidance_summary,
+        )
+    )
+
     bounds_summary = generate_dataset_bounds_summary(
         files=files,
         crs_status=crs_summary["status"],
@@ -212,6 +222,10 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
     issues.extend(crs_resolution_guidance_summary["issues"])
     recommended_actions.extend(crs_resolution_guidance_summary["recommended_actions"])
 
+    recommended_actions.extend(
+        crs_correction_instruction_summary["recommended_actions"]
+    )
+
     issues.extend(bounds_summary["issues"])
     recommended_actions.extend(bounds_summary["recommended_actions"])
 
@@ -255,6 +269,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "unsupported_file_count": unsupported_file_count,
         "crs_summary": crs_summary,
         "crs_resolution_guidance_summary": crs_resolution_guidance_summary,
+        "crs_correction_instruction_summary": crs_correction_instruction_summary,
         "preparation_plan_summary": preparation_plan_summary,
         "bounds_summary": bounds_summary,
         "raster_vector_relationship_summary": raster_vector_relationship_summary,
@@ -417,6 +432,23 @@ def _generate_empty_dataset_readiness_summary() -> dict:
                 "Upload raster or vector GIS files before CRS resolution guidance."
             ],
         },
+        "crs_correction_instruction_summary": {
+            "status": "not_required",
+            "summary": (
+                "No CRS correction instructions are available until spatial files "
+                "are uploaded."
+            ),
+            "target_crs": None,
+            "target_epsg": None,
+            "files_to_reproject": [],
+            "files_to_confirm": [],
+            "arcgis_pro_steps": [],
+            "qgis_steps": [],
+            "python_steps": [],
+            "recommended_actions": [
+                "Upload raster or vector GIS files before generating CRS correction instructions."
+            ],
+        },
         "preparation_plan_summary": {
             "status": "plan_not_available",
             "summary": "No preparation plan is available until dataset files are uploaded.",
@@ -439,7 +471,9 @@ def _generate_empty_dataset_readiness_summary() -> dict:
         },
         "raster_vector_relationship_summary": {
             "status": "no_spatial_relationship",
-            "summary": "No raster or vector files are available for raster-vector relationship detection.",
+            "summary": (
+                "No raster or vector files are available for raster-vector relationship detection."
+            ),
             "raster_file_count": 0,
             "vector_file_count": 0,
             "relationship_type": "none",
@@ -814,5 +848,4 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
             deduplicated.append(item)
 
     return deduplicated
-
     
