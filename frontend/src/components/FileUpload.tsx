@@ -23,6 +23,8 @@ function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
   const crsCorrectionRef = useRef<HTMLDivElement | null>(null);
+  const preparationPlanRef = useRef<HTMLDivElement | null>(null);
+  const preparationStepRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(
@@ -206,6 +208,21 @@ function FileUpload() {
     });
   }
 
+  function handleViewFirstAction(): void {
+    if (!firstActionableStepTitle) {
+      return;
+    }
+
+    const stepRef =
+      preparationStepRefs.current[normalizeStepTitle(firstActionableStepTitle)];
+    const scrollTarget = stepRef ?? preparationPlanRef.current;
+
+    scrollTarget?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
   const fileFilterCounts = getFileFilterCounts(allUploadResults);
@@ -248,6 +265,10 @@ function FileUpload() {
     crsStatus: crsSummary?.status,
     correctedValidationStatus: correctedValidationSummary?.status,
   });
+  const firstActionableStepTitle =
+    preparationPlanSummary && preparationPlanSummary.steps.length > 0
+      ? getFirstActionableStepTitle(preparationPlanSummary.steps)
+      : null;
 
   return (
     <section className="upload-section">
@@ -396,6 +417,16 @@ function FileUpload() {
                 type="button"
               >
                 View CRS correction steps
+              </button>
+            )}
+
+            {firstActionableStepTitle && (
+              <button
+                className="secondary-button report-shortcut-button"
+                onClick={handleViewFirstAction}
+                type="button"
+              >
+                View first action
               </button>
             )}
 
@@ -1100,7 +1131,7 @@ function FileUpload() {
           )}
 
           {preparationPlanSummary && (
-            <div className="preparation-plan-box">
+            <div className="preparation-plan-box" ref={preparationPlanRef}>
               <div className="card-header-row">
                 <div>
                   <h4>Dataset Preparation Plan</h4>
@@ -1152,6 +1183,11 @@ function FileUpload() {
                       <div
                         className="plan-step-card"
                         key={`plan-step-${step.order}`}
+                        ref={(element) => {
+                          preparationStepRefs.current[
+                            normalizeStepTitle(step.title)
+                          ] = element;
+                        }}
                       >
                         <div className="plan-step-header">
                           <span className="plan-step-number">
@@ -2438,6 +2474,10 @@ function getSingleFileWorkflowLabel(
   }
 
   return null;
+}
+
+function normalizeStepTitle(title: string): string {
+  return title.trim().toLowerCase();
 }
 
 function getFirstActionableStepTitle(
