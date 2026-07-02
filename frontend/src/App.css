@@ -23,13 +23,13 @@
   margin-top: 22px;
 }
 
-.upload-panel .secondary-button {
+.secondary-button {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #334155;
 }
 
-.upload-panel .secondary-button:hover:not(:disabled) {
+.secondary-button:hover:not(:disabled) {
   background: #f8fafc;
   border-color: #94a3b8;
 }
@@ -51,6 +51,18 @@
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+}
+
+.report-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.export-report-button {
+  white-space: nowrap;
 }
 
 .report-main {

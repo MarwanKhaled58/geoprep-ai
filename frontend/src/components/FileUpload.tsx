@@ -78,6 +78,42 @@ function FileUpload() {
     }
   }
 
+  function handleExportReportJson(): void {
+    if (!datasetSession || !datasetReadinessSummary) {
+      return;
+    }
+
+    const report = {
+      export_type: "geoprep_dataset_readiness_report",
+      exported_at: new Date().toISOString(),
+      dataset_session_id: datasetSession.dataset_session_id,
+      dataset_file_count: datasetSession.file_count,
+      readiness_summary: datasetReadinessSummary,
+      uploaded_files: allUploadResults.map((result) => ({
+        original_filename: result.original_filename,
+        saved_filename: result.saved_filename,
+        file_category: result.file_category,
+        gis_type: getGisType(result),
+        readiness_status: result.readiness_report?.status ?? null,
+        readiness_score: result.readiness_report?.readiness_score ?? null,
+        warnings: result.warnings ?? [],
+        important_metadata: getImportantMetadata(result),
+      })),
+    };
+
+    const json = JSON.stringify(report, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `geoprep_dataset_report_${datasetSession.dataset_session_id}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
 
@@ -199,11 +235,21 @@ function FileUpload() {
               <h3>Dataset Readiness Summary</h3>
             </div>
 
-            <span
-              className={`status-pill status-${datasetReadinessSummary.status}`}
-            >
-              {datasetReadinessSummary.status}
-            </span>
+            <div className="report-header-actions">
+              <button
+                className="secondary-button export-report-button"
+                onClick={handleExportReportJson}
+                type="button"
+              >
+                Export Report JSON
+              </button>
+
+              <span
+                className={`status-pill status-${datasetReadinessSummary.status}`}
+              >
+                {datasetReadinessSummary.status}
+              </span>
+            </div>
           </div>
 
           <div className="report-main">
