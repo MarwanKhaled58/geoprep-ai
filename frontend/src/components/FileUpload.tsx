@@ -135,6 +135,7 @@ function FileUpload() {
     datasetReadinessSummary?.task_recommendation_summary;
 
   const correctedValidationSummary = buildCorrectedValidationSummary({
+    datasetStatus: datasetReadinessSummary?.status,
     crsStatus: crsSummary?.status,
     boundsStatus: boundsSummary?.status,
     relationshipStatus: rasterVectorRelationshipSummary?.status,
@@ -1271,6 +1272,7 @@ function getImportantMetadata(
 }
 
 type CorrectedValidationInput = {
+  datasetStatus?: string;
   crsStatus?: string;
   boundsStatus?: string;
   relationshipStatus?: string;
@@ -1289,6 +1291,7 @@ type CorrectedValidationSummary = {
 };
 
 function buildCorrectedValidationSummary({
+  datasetStatus,
   crsStatus,
   boundsStatus,
   relationshipStatus,
@@ -1311,6 +1314,28 @@ function buildCorrectedValidationSummary({
     normalizedRelationshipStatus === "candidate_geoai_dataset";
   const taskPassed = normalizedTaskStatus === "task_candidate";
   const planPassed = normalizedPlanStatus === "plan_ready";
+  const singleFileWorkflow = getSingleFileWorkflowLabel(
+    datasetStatus,
+    normalizedRelationshipStatus,
+  );
+
+  if (crsPassed && singleFileWorkflow) {
+    return {
+      status: "passed",
+      summary:
+        `CRS validation passed. This is a ${singleFileWorkflow} workflow, so ` +
+        "cross-file bounds and raster-vector relationship checks are not applicable.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "CRS validation passed.",
+        "Cross-file bounds validation is not applicable for this workflow.",
+        "Raster-vector relationship validation is not applicable for this workflow.",
+      ],
+    };
+  }
 
   if (crsPassed && boundsPassed && relationshipPassed && taskPassed) {
     return {
@@ -1398,6 +1423,21 @@ function buildCorrectedValidationSummary({
       "Task recommendation or preparation plan still needs review.",
     ],
   };
+}
+
+function getSingleFileWorkflowLabel(
+  datasetStatus: string | undefined,
+  relationshipStatus: string,
+): string | null {
+  if (datasetStatus === "raster_only" || relationshipStatus === "raster_only") {
+    return "raster-only";
+  }
+
+  if (datasetStatus === "vector_only" || relationshipStatus === "vector_only") {
+    return "vector-only";
+  }
+
+  return null;
 }
 
 function getFirstActionableStepTitle(
