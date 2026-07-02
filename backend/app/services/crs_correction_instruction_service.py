@@ -1,6 +1,7 @@
 def generate_crs_correction_instruction_summary(
     crs_summary: dict,
     crs_resolution_guidance_summary: dict,
+    workflow_type: str | None = None,
 ) -> dict:
     """
     Generate practical CRS correction and reprojection instructions.
@@ -30,9 +31,7 @@ def generate_crs_correction_instruction_summary(
             "arcgis_pro_steps": [],
             "qgis_steps": [],
             "python_steps": [],
-            "recommended_actions": [
-                "Continue to bounds, overlap, and spatial alignment checks."
-            ],
+            "recommended_actions": [_build_not_required_action(workflow_type)],
         }
 
     if not target_crs or not target_epsg:
@@ -441,6 +440,26 @@ def _build_recommended_actions(
     return _deduplicate_text_items(actions)
 
 
+def _build_not_required_action(workflow_type: str | None) -> str:
+    """
+    Build CRS-not-required action text for the current workflow.
+    """
+
+    if workflow_type == "raster_only":
+        return (
+            "CRS is consistent. This is a raster-only workflow, so cross-file "
+            "bounds and raster-vector alignment checks are not applicable."
+        )
+
+    if workflow_type == "vector_only":
+        return (
+            "CRS is consistent. This is a vector-only workflow, so cross-file "
+            "bounds and raster-vector alignment checks are not applicable."
+        )
+
+    return "Continue to bounds, overlap, and spatial alignment checks."
+
+
 def _collect_filenames(file_guidance: list[dict]) -> list[dict]:
     """
     Collect filenames for manual review.
@@ -518,4 +537,3 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
             deduplicated.append(item)
 
     return deduplicated
-    

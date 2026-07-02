@@ -163,6 +163,10 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         generate_crs_correction_instruction_summary(
             crs_summary=crs_summary,
             crs_resolution_guidance_summary=crs_resolution_guidance_summary,
+            workflow_type=_detect_single_file_workflow_type(
+                raster_count=raster_count,
+                vector_count=vector_count,
+            ),
         )
     )
 
@@ -377,9 +381,12 @@ def generate_dataset_crs_summary(files: list[dict]) -> dict:
     )
 
     if status == "consistent_crs":
-        actions.append(
-            "CRS is consistent across spatial files. Next step should compare bounds and spatial overlap."
+        workflow_type = _detect_single_file_workflow_type(
+            raster_count=_count_spatial_files_by_type(spatial_files, "raster"),
+            vector_count=_count_spatial_files_by_type(spatial_files, "vector"),
         )
+
+        actions.append(_build_consistent_crs_action(workflow_type))
 
         if any(_has_inferred_crs_label(file) for file in spatial_files):
             actions.append(
@@ -512,6 +519,61 @@ def _count_files_by_category(files: list[dict], category: str) -> int:
     """
 
     return len([file for file in files if file.get("file_category") == category])
+
+
+def _count_spatial_files_by_type(files: list[dict], spatial_type: str) -> int:
+    """
+    Count spatial files by file category or GIS type.
+    """
+
+    return len(
+        [
+            file
+            for file in files
+            if file.get("file_category") == spatial_type
+            or file.get("gis_type") == spatial_type
+        ]
+    )
+
+
+def _detect_single_file_workflow_type(
+    raster_count: int,
+    vector_count: int,
+) -> str | None:
+    """
+    Detect raster-only or vector-only workflows for wording.
+    """
+
+    if raster_count > 0 and vector_count == 0:
+        return "raster_only"
+
+    if vector_count > 0 and raster_count == 0:
+        return "vector_only"
+
+    return None
+
+
+def _build_consistent_crs_action(workflow_type: str | None) -> str:
+    """
+    Build CRS action text without implying unavailable cross-file checks.
+    """
+
+    if workflow_type == "raster_only":
+        return (
+            "CRS is consistent. This is a raster-only workflow, so cross-file "
+            "bounds and raster-vector alignment checks are not applicable."
+        )
+
+    if workflow_type == "vector_only":
+        return (
+            "CRS is consistent. This is a vector-only workflow, so cross-file "
+            "bounds and raster-vector alignment checks are not applicable."
+        )
+
+    return (
+        "CRS is consistent across spatial files. Next step should compare bounds "
+        "and spatial overlap."
+    )
 
 
 def _detect_dataset_composition(
