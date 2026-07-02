@@ -35,6 +35,19 @@ const REPORT_SECTION_KEYS = {
 type ReportSectionKey =
   (typeof REPORT_SECTION_KEYS)[keyof typeof REPORT_SECTION_KEYS];
 
+const COLLAPSIBLE_REPORT_SECTION_KEYS: ReportSectionKey[] = [
+  REPORT_SECTION_KEYS.CORRECTED_VALIDATION,
+  REPORT_SECTION_KEYS.CRS_REVIEW,
+  REPORT_SECTION_KEYS.CRS_GUIDANCE,
+  REPORT_SECTION_KEYS.CRS_CORRECTION,
+  REPORT_SECTION_KEYS.BOUNDS_REVIEW,
+  REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP,
+  REPORT_SECTION_KEYS.TASK_RECOMMENDATION,
+  REPORT_SECTION_KEYS.PREPARATION_PLAN,
+  REPORT_SECTION_KEYS.DATASET_ISSUES,
+  REPORT_SECTION_KEYS.FILE_RESULTS,
+];
+
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
@@ -226,6 +239,21 @@ function FileUpload() {
       ...currentSections,
       [sectionKey]: false,
     }));
+  }
+
+  function handleExpandAllReportSections(): void {
+    setCollapsedSections({});
+  }
+
+  function handleCollapseAllReportSections(): void {
+    setCollapsedSections(
+      COLLAPSIBLE_REPORT_SECTION_KEYS.reduce<
+        Partial<Record<ReportSectionKey, boolean>>
+      >((collapsedSectionMap, sectionKey) => {
+        collapsedSectionMap[sectionKey] = true;
+        return collapsedSectionMap;
+      }, {}),
+    );
   }
 
   function handleViewWarningFiles(): void {
@@ -464,6 +492,24 @@ function FileUpload() {
                   View first action
                 </button>
               )}
+            </div>
+
+            <div className="report-section-controls">
+              <button
+                className="secondary-button"
+                onClick={handleExpandAllReportSections}
+                type="button"
+              >
+                Expand All
+              </button>
+
+              <button
+                className="secondary-button"
+                onClick={handleCollapseAllReportSections}
+                type="button"
+              >
+                Collapse All
+              </button>
             </div>
           </div>
 
