@@ -18,6 +18,7 @@ function FileUpload() {
   const [error, setError] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
+  const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
@@ -137,6 +138,33 @@ function FileUpload() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleCopyReportSummary(): Promise<void> {
+    if (!datasetSession || !datasetReadinessSummary) {
+      return;
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      setError("Clipboard copy is not available in this browser.");
+      return;
+    }
+
+    try {
+      const summary = buildPlainTextReportSummary({
+        datasetSession,
+        datasetReadinessSummary,
+        reportQualityBadge,
+      });
+
+      await navigator.clipboard.writeText(summary);
+      setError("");
+      setIsSummaryCopied(true);
+      window.setTimeout(() => setIsSummaryCopied(false), 1800);
+    } catch {
+      setIsSummaryCopied(false);
+      setError("Could not copy report summary to clipboard.");
+    }
   }
 
   const allUploadResults =
@@ -279,6 +307,14 @@ function FileUpload() {
                 type="button"
               >
                 Export Report Markdown
+              </button>
+
+              <button
+                className="secondary-button export-report-button"
+                onClick={handleCopyReportSummary}
+                type="button"
+              >
+                {isSummaryCopied ? "Copied!" : "Copy Report Summary"}
               </button>
 
               <span
@@ -1301,6 +1337,47 @@ type ReportQualityBadge = {
   reason: string;
 };
 
+type PlainTextReportSummaryInput = {
+  datasetSession: DatasetSession;
+  datasetReadinessSummary: DatasetReadinessSummary;
+  reportQualityBadge: ReportQualityBadge | null;
+};
+
+function buildPlainTextReportSummary({
+  datasetSession,
+  datasetReadinessSummary,
+  reportQualityBadge,
+}: PlainTextReportSummaryInput): string {
+  return [
+    "GeoPrep AI Dataset Summary",
+    "",
+    `Dataset session ID: ${formatPlainTextValue(datasetSession.dataset_session_id)}`,
+    `Status: ${formatPlainTextValue(datasetReadinessSummary.status)}`,
+    `Quality: ${formatPlainTextValue(reportQualityBadge?.label)}`,
+    `Reason: ${formatPlainTextValue(reportQualityBadge?.reason)}`,
+    `Readiness: ${formatPlainTextValue(datasetReadinessSummary.readiness_score)}/100`,
+    `Composition: ${formatReportPreviewComposition(datasetReadinessSummary)}`,
+    `Recommended task: ${formatReportPreviewTask(
+      datasetReadinessSummary.task_recommendation_summary,
+    )}`,
+    `First actionable step: ${formatReportPreviewStep(
+      datasetReadinessSummary.preparation_plan_summary?.steps,
+    )}`,
+    "",
+    "Main issues:",
+    formatPlainTextList(
+      datasetReadinessSummary.issues,
+      "No dataset-level issues detected.",
+    ),
+    "",
+    "Recommended next actions:",
+    formatPlainTextList(
+      datasetReadinessSummary.recommended_actions,
+      "No immediate dataset-level actions required.",
+    ),
+  ].join("\n");
+}
+
 function buildReportQualityBadge(
   datasetReadinessSummary: DatasetReadinessSummary,
 ): ReportQualityBadge {
@@ -1369,6 +1446,22 @@ function buildReportQualityBadge(
     label: "Needs Review",
     reason: "Some preparation checks still need review.",
   };
+}
+
+function formatPlainTextList(items: string[], emptyText: string): string {
+  if (items.length === 0) {
+    return `- ${emptyText}`;
+  }
+
+  return items.map((item) => `- ${formatPlainTextValue(item)}`).join("\n");
+}
+
+function formatPlainTextValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "Not available";
+  }
+
+  return String(value).replace(/\s+/g, " ").trim();
 }
 
 function formatCrsLabel(crsLabel: string): string {
