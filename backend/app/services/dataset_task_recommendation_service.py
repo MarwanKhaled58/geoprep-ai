@@ -43,6 +43,8 @@ def generate_dataset_task_recommendation_summary(
         readiness_status=readiness_status,
         recommended_task=recommended_task,
         blockers=blockers,
+        relationship_type=relationship_type,
+        relationship_status=relationship_status,
     )
 
     return {
@@ -64,6 +66,9 @@ def generate_dataset_task_recommendation_summary(
             blockers=blockers,
             vector_role=vector_role,
             readiness_status=readiness_status,
+            relationship_type=relationship_type,
+            relationship_status=relationship_status,
+            bounds_status=bounds_status,
         ),
     }
 
@@ -187,14 +192,28 @@ def _build_task_summary(
     readiness_status: str,
     recommended_task: str,
     blockers: list[str],
+    relationship_type: str,
+    relationship_status: str,
 ) -> str:
     """
     Build human-readable task recommendation summary.
     """
 
     task_label = recommended_task.replace("_", " ")
+    single_file_workflow = _get_single_file_workflow_label(
+        relationship_type=relationship_type,
+        relationship_status=relationship_status,
+    )
 
     if readiness_status == "task_candidate":
+        if single_file_workflow:
+            return (
+                f"CRS validation passed. This is a {single_file_workflow} workflow, "
+                "so cross-file bounds and raster-vector relationship checks are not "
+                f"applicable. GeoPrep AI recommends '{task_label}' as a candidate "
+                "GeoAI task."
+            )
+
         return (
             "Corrected re-upload validation passed for task recommendation. "
             f"GeoPrep AI recommends '{task_label}' as a candidate GeoAI task. "
@@ -238,20 +257,41 @@ def _build_task_recommended_actions(
     blockers: list[str],
     vector_role: str,
     readiness_status: str,
+    relationship_type: str,
+    relationship_status: str,
+    bounds_status: str,
 ) -> list[str]:
     """
     Build recommended actions for the task recommendation.
     """
 
     actions: list[str] = []
+    single_file_workflow = _get_single_file_workflow_label(
+        relationship_type=relationship_type,
+        relationship_status=relationship_status,
+    )
 
     if readiness_status == "task_candidate":
-        actions.append(
-            "Corrected re-upload validation passed for CRS, bounds, and raster-vector relationship checks."
-        )
-        actions.append(
-            "Continue with detailed alignment validation before exporting model-ready data."
-        )
+        if single_file_workflow:
+            actions.append(
+                f"CRS validation passed. This is a {single_file_workflow} workflow, so cross-file bounds and raster-vector relationship checks are not applicable."
+            )
+        elif (
+            relationship_status == "candidate_geoai_dataset"
+            and bounds_status == "overlapping_bounds"
+        ):
+            actions.append(
+                "Corrected re-upload validation passed for CRS, bounds, and raster-vector relationship checks."
+            )
+
+        if single_file_workflow:
+            actions.append(
+                "Continue with workflow-specific quality checks before exporting model-ready data."
+            )
+        else:
+            actions.append(
+                "Continue with detailed alignment validation before exporting model-ready data."
+            )
 
     if "crs_review_required" in blockers:
         actions.append("Resolve CRS issues before preparing this dataset for a GeoAI task.")
@@ -308,6 +348,23 @@ def _build_task_recommended_actions(
     return _deduplicate_text_items(actions)
 
 
+def _get_single_file_workflow_label(
+    relationship_type: str,
+    relationship_status: str,
+) -> str | None:
+    """
+    Return a single-file workflow label when bounds/relationship checks do not apply.
+    """
+
+    if relationship_status == "vector_only" or relationship_type == "labels_or_gis_only":
+        return "vector-only"
+
+    if relationship_status == "raster_only" or relationship_type == "imagery_only":
+        return "raster-only"
+
+    return None
+
+
 def _deduplicate_text_items(items: list[str]) -> list[str]:
     """
     Remove duplicate text items while preserving order.
@@ -320,4 +377,3 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
             deduplicated.append(item)
 
     return deduplicated
-    
