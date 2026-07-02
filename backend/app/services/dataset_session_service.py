@@ -208,36 +208,30 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         unsupported_file_count=unsupported_file_count,
     )
 
-    recommended_actions = _build_composition_recommended_actions(
+    issues.extend(crs_summary["issues"])
+
+    issues.extend(crs_resolution_guidance_summary["issues"])
+
+    issues.extend(bounds_summary["issues"])
+
+    issues.extend(raster_vector_relationship_summary["issues"])
+
+    issues.extend(task_recommendation_summary["issues"])
+
+    recommended_actions = _build_dataset_level_recommended_actions(
         composition=composition,
         raster_count=raster_count,
         vector_count=vector_count,
         supporting_file_count=supporting_file_count,
         unsupported_file_count=unsupported_file_count,
+        crs_summary=crs_summary,
+        crs_resolution_guidance_summary=crs_resolution_guidance_summary,
+        crs_correction_instruction_summary=crs_correction_instruction_summary,
+        bounds_summary=bounds_summary,
+        raster_vector_relationship_summary=raster_vector_relationship_summary,
+        task_recommendation_summary=task_recommendation_summary,
+        preparation_plan_summary=preparation_plan_summary,
     )
-
-    issues.extend(crs_summary["issues"])
-    recommended_actions.extend(crs_summary["recommended_actions"])
-
-    issues.extend(crs_resolution_guidance_summary["issues"])
-    recommended_actions.extend(crs_resolution_guidance_summary["recommended_actions"])
-
-    recommended_actions.extend(
-        crs_correction_instruction_summary["recommended_actions"]
-    )
-
-    issues.extend(bounds_summary["issues"])
-    recommended_actions.extend(bounds_summary["recommended_actions"])
-
-    issues.extend(raster_vector_relationship_summary["issues"])
-    recommended_actions.extend(
-        raster_vector_relationship_summary["recommended_actions"]
-    )
-
-    issues.extend(task_recommendation_summary["issues"])
-    recommended_actions.extend(task_recommendation_summary["recommended_actions"])
-
-    recommended_actions.extend(preparation_plan_summary["recommended_actions"])
 
     adjusted_score = _adjust_dataset_score_for_composition(
         average_score=average_score,
@@ -262,7 +256,7 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         "status": status,
         "summary": summary,
         "issues": _deduplicate_text_items(issues),
-        "recommended_actions": _deduplicate_text_items(recommended_actions),
+        "recommended_actions": recommended_actions,
         "raster_count": raster_count,
         "vector_count": vector_count,
         "supporting_file_count": supporting_file_count,
@@ -657,6 +651,288 @@ def _build_composition_recommended_actions(
     return actions
 
 
+def _build_dataset_level_recommended_actions(
+    composition: str,
+    raster_count: int,
+    vector_count: int,
+    supporting_file_count: int,
+    unsupported_file_count: int,
+    crs_summary: dict,
+    crs_resolution_guidance_summary: dict,
+    crs_correction_instruction_summary: dict,
+    bounds_summary: dict,
+    raster_vector_relationship_summary: dict,
+    task_recommendation_summary: dict,
+    preparation_plan_summary: dict,
+) -> list[str]:
+    """
+    Build a concise final dataset-level action list.
+
+    Detailed section actions stay in their own summaries. This list only
+    surfaces the next practical actions in blocker order.
+    """
+
+    max_actions = 8
+    actions: list[str] = []
+
+    crs_status = crs_summary.get("status")
+    bounds_status = bounds_summary.get("status")
+    relationship_status = raster_vector_relationship_summary.get("status")
+    task_status = task_recommendation_summary.get("status")
+    plan_status = preparation_plan_summary.get("status")
+
+    target_crs = (
+        crs_correction_instruction_summary.get("target_crs")
+        or crs_resolution_guidance_summary.get("recommended_target_crs")
+    )
+
+    crs_blocked = crs_status in {"missing_crs", "mixed_crs", "unresolved_crs"}
+    bounds_blocked = bounds_status in {
+        "missing_bounds",
+        "no_spatial_overlap",
+        "partial_spatial_overlap",
+    }
+    relationship_blocked = relationship_status in {
+        "blocked_by_bounds_review",
+        "relationship_needs_review",
+    }
+
+    if crs_blocked:
+        _append_unique_action(
+            actions,
+            "Resolve CRS issues before bounds comparison, alignment, or GeoAI preparation.",
+            max_actions,
+        )
+
+        if target_crs:
+            _append_unique_action(
+                actions,
+                (
+                    f"Use {target_crs} as the recommended target CRS unless "
+                    "project requirements specify another CRS."
+                ),
+                max_actions,
+            )
+        else:
+            _append_unique_action(
+                actions,
+                "Confirm the official project CRS before reprojection.",
+                max_actions,
+            )
+
+        for item in crs_correction_instruction_summary.get("files_to_reproject", []):
+            if len(actions) >= max_actions - 1:
+                break
+
+            filename = item.get("filename") or "unknown file"
+            source_crs = item.get("source_crs")
+            item_target_crs = item.get("target_crs") or target_crs
+
+            if source_crs and item_target_crs:
+                action = f"Reproject {filename} from {source_crs} to {item_target_crs}."
+            elif item_target_crs:
+                action = f"Reproject {filename} to {item_target_crs}."
+            else:
+                action = f"Reproject {filename} after confirming the target CRS."
+
+            _append_unique_action(actions, action, max_actions)
+
+        for item in crs_correction_instruction_summary.get("files_to_confirm", []):
+            if len(actions) >= max_actions - 1:
+                break
+
+            filename = item.get("filename") or "unknown file"
+            crs_label = (
+                item.get("recommended_crs")
+                or item.get("detected_crs")
+                or target_crs
+            )
+
+            if crs_label:
+                action = f"Confirm {filename} as {crs_label}."
+            else:
+                action = f"Confirm CRS for {filename} before continuing."
+
+            _append_unique_action(actions, action, max_actions)
+
+        _append_unique_action(
+            actions,
+            "Re-upload corrected files and re-run GeoPrep AI checks.",
+            max_actions,
+        )
+
+        return actions
+
+    if composition == "unsupported_files_present":
+        _append_unique_action(
+            actions,
+            "Remove unsupported files or replace them with supported dataset files.",
+            max_actions,
+        )
+
+    if composition == "supporting_files_only":
+        _append_unique_action(
+            actions,
+            "Upload raster imagery or vector GIS data before preparing a GeoAI dataset.",
+            max_actions,
+        )
+        _append_unique_action(
+            actions,
+            "Keep supporting files as documentation, notes, or metadata.",
+            max_actions,
+        )
+
+    if composition == "raster_only":
+        _append_unique_action(
+            actions,
+            "Upload vector labels, masks, or annotations if supervised GeoAI training is required.",
+            max_actions,
+        )
+
+    if composition == "vector_only":
+        _append_unique_action(
+            actions,
+            "Upload raster imagery if the vector data is intended for GeoAI training labels or annotations.",
+            max_actions,
+        )
+
+    if bounds_blocked:
+        _append_bounds_action(actions, bounds_status, max_actions)
+
+    if relationship_blocked:
+        _append_unique_action(
+            actions,
+            "Confirm the raster-vector relationship before generating labels, masks, or training samples.",
+            max_actions,
+        )
+
+    if task_status == "task_candidate":
+        recommended_task = task_recommendation_summary.get("recommended_task")
+        task_label = (
+            recommended_task.replace("_", " ")
+            if isinstance(recommended_task, str)
+            else "the recommended GeoAI task"
+        )
+
+        _append_unique_action(
+            actions,
+            f"Prepare task-specific inputs for {task_label}.",
+            max_actions,
+        )
+    elif task_status == "task_needs_review":
+        _append_unique_action(
+            actions,
+            "Review the dataset manually to decide the correct GeoAI task.",
+            max_actions,
+        )
+
+    if supporting_file_count > 0 and composition != "supporting_files_only":
+        _append_unique_action(
+            actions,
+            "Keep supporting files in the dataset package as metadata or documentation.",
+            max_actions,
+        )
+
+    if plan_status == "plan_ready":
+        _append_unique_action(
+            actions,
+            "Export corrected raster/vector files with metadata, CRS information, preparation report, and warnings.",
+            max_actions,
+        )
+    elif not actions:
+        _append_unique_action(
+            actions,
+            "Follow the preparation steps in order before exporting a model-ready package.",
+            max_actions,
+        )
+
+    if raster_count > 0 and vector_count > 0 and not actions:
+        _append_unique_action(
+            actions,
+            "Continue with detailed alignment validation before exporting model-ready data.",
+            max_actions,
+        )
+
+    return actions[:max_actions]
+
+
+def _append_bounds_action(
+    actions: list[str],
+    bounds_status: str,
+    max_actions: int,
+) -> None:
+    """
+    Add the highest-level bounds action for the current status.
+    """
+
+    if bounds_status == "missing_bounds":
+        _append_unique_action(
+            actions,
+            "Inspect or repair files missing bounds before spatial relationship checks.",
+            max_actions,
+        )
+        return
+
+    if bounds_status == "no_spatial_overlap":
+        _append_unique_action(
+            actions,
+            "Confirm source data, project area, and reprojection outputs because spatial bounds do not overlap.",
+            max_actions,
+        )
+        return
+
+    if bounds_status == "partial_spatial_overlap":
+        _append_unique_action(
+            actions,
+            "Review files with non-overlapping bounds before GeoAI preparation.",
+            max_actions,
+        )
+
+
+def _append_unique_action(
+    actions: list[str],
+    action: str,
+    max_actions: int,
+) -> None:
+    """
+    Append an action if there is room and no similar action exists.
+    """
+
+    if len(actions) >= max_actions:
+        return
+
+    action_key = _normalize_action_key(action)
+
+    if action_key in {_normalize_action_key(existing) for existing in actions}:
+        return
+
+    actions.append(action)
+
+
+def _normalize_action_key(action: str) -> str:
+    """
+    Normalize action text for similarity-level deduplication.
+    """
+
+    normalized = action.lower()
+
+    for punctuation in [".", ",", ":", ";", "(", ")"]:
+        normalized = normalized.replace(punctuation, "")
+
+    replacements = {
+        "geoai": "geo ai",
+        "re-run": "rerun",
+        "reupload": "re-upload",
+        "recommended target crs": "target crs",
+        "working crs": "target crs",
+    }
+
+    for old, new in replacements.items():
+        normalized = normalized.replace(old, new)
+
+    return " ".join(normalized.split())
+
+
 def _resolve_dataset_status(
     average_score: int,
     composition: str,
@@ -922,4 +1198,3 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
             deduplicated.append(item)
 
     return deduplicated
-    
