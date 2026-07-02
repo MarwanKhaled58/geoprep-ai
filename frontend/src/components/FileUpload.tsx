@@ -3,6 +3,8 @@ import {
   uploadFile,
   uploadFiles,
   type BatchUploadResponse,
+  type DatasetReadinessSummary,
+  type DatasetSession,
   type UploadResponse,
 } from "../api/uploadApi";
 
@@ -108,6 +110,29 @@ function FileUpload() {
 
     link.href = url;
     link.download = `geoprep_dataset_report_${datasetSession.dataset_session_id}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportMarkdownReport(): void {
+    if (!datasetSession || !datasetReadinessSummary) {
+      return;
+    }
+
+    const markdown = buildMarkdownReport({
+      datasetSession,
+      datasetReadinessSummary,
+      correctedValidationSummary,
+      allUploadResults,
+    });
+    const blob = new Blob([markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `geoprep_dataset_report_${datasetSession.dataset_session_id}.md`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -243,6 +268,14 @@ function FileUpload() {
                 type="button"
               >
                 Export Report JSON
+              </button>
+
+              <button
+                className="secondary-button export-report-button"
+                onClick={handleExportMarkdownReport}
+                type="button"
+              >
+                Export Report Markdown
               </button>
 
               <span
@@ -1269,6 +1302,404 @@ function getImportantMetadata(
   }
 
   return items;
+}
+
+type MarkdownReportInput = {
+  datasetSession: DatasetSession;
+  datasetReadinessSummary: DatasetReadinessSummary;
+  correctedValidationSummary: CorrectedValidationSummary | null;
+  allUploadResults: UploadResponse[];
+};
+
+function buildMarkdownReport({
+  datasetSession,
+  datasetReadinessSummary,
+  correctedValidationSummary,
+  allUploadResults,
+}: MarkdownReportInput): string {
+  const crsSummary = datasetReadinessSummary.crs_summary;
+  const crsResolutionGuidanceSummary =
+    datasetReadinessSummary.crs_resolution_guidance_summary;
+  const crsCorrectionInstructionSummary =
+    datasetReadinessSummary.crs_correction_instruction_summary;
+  const boundsSummary = datasetReadinessSummary.bounds_summary;
+  const rasterVectorRelationshipSummary =
+    datasetReadinessSummary.raster_vector_relationship_summary;
+  const taskRecommendationSummary =
+    datasetReadinessSummary.task_recommendation_summary;
+  const preparationPlanSummary =
+    datasetReadinessSummary.preparation_plan_summary;
+
+  const lines: string[] = [
+    "# GeoPrep AI Dataset Readiness Report",
+    "",
+    "## Report Metadata",
+    `- Exported at: ${formatMarkdownValue(new Date().toISOString())}`,
+    `- Dataset session ID: ${formatMarkdownValue(datasetSession.dataset_session_id)}`,
+    `- Dataset file count: ${formatMarkdownValue(datasetSession.file_count)}`,
+    "",
+    "## Dataset Readiness Summary",
+    `- Status: ${formatMarkdownValue(datasetReadinessSummary.status)}`,
+    `- Readiness score: ${formatMarkdownValue(datasetReadinessSummary.readiness_score)}/100`,
+    `- Summary: ${formatMarkdownValue(datasetReadinessSummary.summary)}`,
+    `- Raster files: ${formatMarkdownValue(datasetReadinessSummary.raster_count)}`,
+    `- Vector files: ${formatMarkdownValue(datasetReadinessSummary.vector_count)}`,
+    `- Supporting files: ${formatMarkdownValue(datasetReadinessSummary.supporting_file_count)}`,
+    `- Unsupported files: ${formatMarkdownValue(datasetReadinessSummary.unsupported_file_count)}`,
+    "",
+    "## Dataset Issues",
+    formatMarkdownList(
+      datasetReadinessSummary.issues,
+      "No dataset-level issues detected.",
+    ),
+    "",
+    "## Recommended Next Actions",
+    formatMarkdownList(
+      datasetReadinessSummary.recommended_actions,
+      "No immediate dataset-level actions required.",
+    ),
+    "",
+    "## Corrected Re-upload Validation",
+  ];
+
+  if (correctedValidationSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(correctedValidationSummary.status)}`,
+      `- Message: ${formatMarkdownValue(correctedValidationSummary.summary)}`,
+      `- CRS: ${formatMarkdownValue(correctedValidationSummary.crsStatus)}`,
+      `- Bounds: ${formatMarkdownValue(correctedValidationSummary.boundsStatus)}`,
+      `- Raster-vector: ${formatMarkdownValue(correctedValidationSummary.relationshipStatus)}`,
+      `- Task: ${formatMarkdownValue(correctedValidationSummary.taskStatus)}`,
+      "",
+      "### Validation Checks",
+      formatMarkdownList(correctedValidationSummary.checks, "No validation checks available."),
+    );
+  } else {
+    lines.push("No corrected re-upload validation summary is available.");
+  }
+
+  lines.push("", "## CRS Review");
+
+  if (crsSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(crsSummary.status)}`,
+      `- Summary: ${formatMarkdownValue(crsSummary.summary)}`,
+      "",
+      "### CRS Groups",
+      crsSummary.crs_groups.length > 0
+        ? crsSummary.crs_groups
+            .map(
+              (group) =>
+                `- ${formatMarkdownValue(group.crs_label)} (${formatMarkdownValue(group.file_count)} file(s)): ${formatMarkdownValue(group.filenames.join(", "))}`,
+            )
+            .join("\n")
+        : "- No CRS groups available.",
+      "",
+      "### CRS Issues",
+      formatMarkdownList(crsSummary.issues, "No CRS issues detected."),
+      "",
+      "### CRS Recommended Actions",
+      formatMarkdownList(crsSummary.recommended_actions, "No CRS actions required."),
+    );
+  } else {
+    lines.push("No CRS review is available.");
+  }
+
+  lines.push("", "## CRS Resolution Guidance");
+
+  if (crsResolutionGuidanceSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(crsResolutionGuidanceSummary.status)}`,
+      `- Recommended target CRS: ${formatMarkdownValue(crsResolutionGuidanceSummary.recommended_target_crs)}`,
+      `- Recommended EPSG: ${formatMarkdownValue(crsResolutionGuidanceSummary.recommended_target_epsg)}`,
+      "",
+      "### Per-file CRS Guidance",
+      crsResolutionGuidanceSummary.file_guidance.length > 0
+        ? crsResolutionGuidanceSummary.file_guidance
+            .map(
+              (item) =>
+                `- ${formatMarkdownValue(item.filename)}: ${formatMarkdownValue(item.status)}; detected CRS: ${formatMarkdownValue(item.detected_crs)}; action: ${formatMarkdownValue(item.recommended_action)}`,
+            )
+            .join("\n")
+        : "- No per-file CRS guidance available.",
+      "",
+      "### CRS Resolution Recommended Actions",
+      formatMarkdownList(
+        crsResolutionGuidanceSummary.recommended_actions,
+        "No CRS resolution actions required.",
+      ),
+    );
+  } else {
+    lines.push("No CRS resolution guidance is available.");
+  }
+
+  lines.push("", "## CRS Correction Instructions");
+
+  if (crsCorrectionInstructionSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(crsCorrectionInstructionSummary.status)}`,
+      `- Target CRS: ${formatMarkdownValue(crsCorrectionInstructionSummary.target_crs)}`,
+      `- Target EPSG: ${formatMarkdownValue(crsCorrectionInstructionSummary.target_epsg)}`,
+      "",
+      "### Files To Reproject",
+      formatInstructionItems(
+        crsCorrectionInstructionSummary.files_to_reproject,
+        "No files need reprojection.",
+      ),
+      "",
+      "### Files To Confirm",
+      formatInstructionItems(
+        crsCorrectionInstructionSummary.files_to_confirm,
+        "No files need CRS confirmation.",
+      ),
+      "",
+      "### ArcGIS Pro Steps",
+      formatMarkdownList(
+        crsCorrectionInstructionSummary.arcgis_pro_steps,
+        "No ArcGIS Pro steps available.",
+      ),
+      "",
+      "### QGIS Steps",
+      formatMarkdownList(
+        crsCorrectionInstructionSummary.qgis_steps,
+        "No QGIS steps available.",
+      ),
+      "",
+      "### Python / GeoPandas Steps",
+      formatMarkdownList(
+        crsCorrectionInstructionSummary.python_steps,
+        "No Python / GeoPandas steps available.",
+      ),
+      "",
+      "### CRS Correction Recommended Actions",
+      formatMarkdownList(
+        crsCorrectionInstructionSummary.recommended_actions,
+        "No CRS correction actions required.",
+      ),
+    );
+  } else {
+    lines.push("No CRS correction instructions are available.");
+  }
+
+  lines.push("", "## Bounds Review");
+
+  if (boundsSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(boundsSummary.status)}`,
+      `- Summary: ${formatMarkdownValue(boundsSummary.summary)}`,
+      "",
+      "### Bounds Issues",
+      formatMarkdownList(boundsSummary.issues, "No bounds issues detected."),
+      "",
+      "### Bounds Recommended Actions",
+      formatMarkdownList(boundsSummary.recommended_actions, "No bounds actions required."),
+    );
+  } else {
+    lines.push("No bounds review is available.");
+  }
+
+  lines.push("", "## Raster-Vector Relationship");
+
+  if (rasterVectorRelationshipSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(rasterVectorRelationshipSummary.status)}`,
+      `- Summary: ${formatMarkdownValue(rasterVectorRelationshipSummary.summary)}`,
+      `- Relationship type: ${formatMarkdownValue(rasterVectorRelationshipSummary.relationship_type)}`,
+      `- Vector role: ${formatMarkdownValue(rasterVectorRelationshipSummary.vector_role)}`,
+      "",
+      "### Relationship Issues",
+      formatMarkdownList(
+        rasterVectorRelationshipSummary.issues,
+        "No raster-vector relationship issues detected.",
+      ),
+      "",
+      "### Relationship Recommended Actions",
+      formatMarkdownList(
+        rasterVectorRelationshipSummary.recommended_actions,
+        "No raster-vector relationship actions required.",
+      ),
+    );
+  } else {
+    lines.push("No raster-vector relationship review is available.");
+  }
+
+  lines.push("", "## Dataset Task Recommendation");
+
+  if (taskRecommendationSummary) {
+    lines.push(
+      `- Status: ${formatMarkdownValue(taskRecommendationSummary.status)}`,
+      `- Recommended task: ${formatMarkdownValue(taskRecommendationSummary.recommended_task)}`,
+      `- Confidence: ${formatMarkdownValue(taskRecommendationSummary.confidence)}`,
+      `- Blockers: ${formatMarkdownValue(taskRecommendationSummary.blockers)}`,
+      `- Summary: ${formatMarkdownValue(taskRecommendationSummary.summary)}`,
+      "",
+      "### Task Issues",
+      formatMarkdownList(taskRecommendationSummary.issues, "No task issues detected."),
+      "",
+      "### Task Recommended Actions",
+      formatMarkdownList(
+        taskRecommendationSummary.recommended_actions,
+        "No task recommendation actions required.",
+      ),
+    );
+  } else {
+    lines.push("No task recommendation is available.");
+  }
+
+  lines.push("", "## Dataset Preparation Plan");
+
+  if (preparationPlanSummary) {
+    lines.push(
+      `- Plan status: ${formatMarkdownValue(preparationPlanSummary.status)}`,
+      `- Summary: ${formatMarkdownValue(preparationPlanSummary.summary)}`,
+      `- First actionable step: ${formatMarkdownValue(getFirstActionableStepTitle(preparationPlanSummary.steps))}`,
+      "",
+      "### Preparation Steps",
+      preparationPlanSummary.steps.length > 0
+        ? preparationPlanSummary.steps
+            .map(
+              (step) =>
+                [
+                  `- Step ${formatMarkdownValue(step.order)}: ${formatMarkdownValue(step.title)}`,
+                  `  - Status: ${formatMarkdownValue(step.status)}`,
+                  `  - Description: ${formatMarkdownValue(step.description)}`,
+                  `  - Expected result: ${formatMarkdownValue(step.expected_result)}`,
+                  `  - Actions:`,
+                  formatNestedMarkdownList(step.actions, "No actions listed."),
+                ].join("\n"),
+            )
+            .join("\n")
+        : "- No preparation steps available.",
+      "",
+      "### Preparation Plan Recommended Actions",
+      formatMarkdownList(
+        preparationPlanSummary.recommended_actions,
+        "No preparation plan actions required.",
+      ),
+    );
+  } else {
+    lines.push("No preparation plan is available.");
+  }
+
+  lines.push("", "## Uploaded Files Overview");
+
+  if (allUploadResults.length === 0) {
+    lines.push("No uploaded file summaries are available.");
+  } else {
+    lines.push(
+      allUploadResults
+        .map((result, index) => formatUploadedFileMarkdown(result, index))
+        .join("\n\n"),
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function formatUploadedFileMarkdown(result: UploadResponse, index: number): string {
+  const warnings = result.warnings ?? [];
+  const warningLines =
+    warnings.length > 0
+      ? warnings
+          .map(
+            (warning) =>
+              `  - ${formatMarkdownValue(warning.severity)} ${formatMarkdownValue(warning.code)}: ${formatMarkdownValue(warning.message)}${
+                warning.recommended_action
+                  ? ` Recommended action: ${formatMarkdownValue(warning.recommended_action)}`
+                  : ""
+              }`,
+          )
+          .join("\n")
+      : "  - No warnings detected.";
+
+  return [
+    `### ${index + 1}. ${formatMarkdownValue(result.original_filename)}`,
+    `- Original filename: ${formatMarkdownValue(result.original_filename)}`,
+    `- Saved filename: ${formatMarkdownValue(result.saved_filename)}`,
+    `- File category: ${formatMarkdownValue(result.file_category)}`,
+    `- GIS type: ${formatMarkdownValue(getGisType(result))}`,
+    `- Readiness status: ${formatMarkdownValue(result.readiness_report?.status)}`,
+    `- Readiness score: ${formatMarkdownValue(result.readiness_report?.readiness_score)}`,
+    "- Important metadata:",
+    formatNestedMetadata(getImportantMetadata(result)),
+    "- Warnings:",
+    warningLines,
+  ].join("\n");
+}
+
+function formatInstructionItems(
+  items: Array<Record<string, unknown>>,
+  emptyText: string,
+): string {
+  if (items.length === 0) {
+    return `- ${emptyText}`;
+  }
+
+  return items
+    .map((item) => {
+      const filename = formatMarkdownValue(item.filename);
+      const reason = formatMarkdownValue(item.reason);
+      const source = item.source_crs
+        ? ` from ${formatMarkdownValue(item.source_crs)}`
+        : "";
+      const targetValue = item.target_crs ?? item.recommended_crs ?? item.detected_crs;
+      const target = targetValue ? ` to/as ${formatMarkdownValue(targetValue)}` : "";
+
+      return `- ${filename}${source}${target}. ${reason}`;
+    })
+    .join("\n");
+}
+
+function formatMarkdownList(items: unknown[] | undefined, emptyText: string): string {
+  if (!items || items.length === 0) {
+    return `- ${emptyText}`;
+  }
+
+  return items.map((item) => `- ${formatMarkdownValue(item)}`).join("\n");
+}
+
+function formatNestedMarkdownList(
+  items: unknown[] | undefined,
+  emptyText: string,
+): string {
+  if (!items || items.length === 0) {
+    return `    - ${emptyText}`;
+  }
+
+  return items.map((item) => `    - ${formatMarkdownValue(item)}`).join("\n");
+}
+
+function formatNestedMetadata(
+  items: Array<{ label: string; value: string }>,
+): string {
+  if (items.length === 0) {
+    return "  - No important metadata available.";
+  }
+
+  return items
+    .map(
+      (item) =>
+        `  - ${formatMarkdownValue(item.label)}: ${formatMarkdownValue(item.value)}`,
+    )
+    .join("\n");
+}
+
+function formatMarkdownValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "Not available";
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((item) => formatMarkdownValue(item)).join(", ")
+      : "None";
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value).replace(/\s+/g, " ").trim();
 }
 
 type CorrectedValidationInput = {
