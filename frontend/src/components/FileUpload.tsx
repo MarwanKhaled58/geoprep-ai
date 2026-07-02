@@ -176,6 +176,7 @@ function FileUpload() {
     allUploadResults,
     selectedFileFilter,
   );
+  const warningSummary = buildWarningSummary(allUploadResults);
 
   const datasetSession =
     batchResult?.dataset_session ?? uploadResult?.dataset_session;
@@ -374,6 +375,75 @@ function FileUpload() {
               />
             </div>
           </div>
+
+          {allUploadResults.length > 0 && (
+            <div className="warning-summary-panel">
+              <div className="card-header-row">
+                <div>
+                  <h4>Warning Summary</h4>
+                  <p className="small-muted">
+                    File-level warnings across all uploaded files.
+                  </p>
+                </div>
+
+                <span className="status-pill">
+                  {warningSummary.totalWarnings} warning(s)
+                </span>
+              </div>
+
+              {warningSummary.totalWarnings === 0 ? (
+                <p className="success-text">No file-level warnings detected.</p>
+              ) : (
+                <>
+                  <div className="info-grid compact-grid warning-summary-grid">
+                    <InfoItem
+                      label="Total warnings"
+                      value={String(warningSummary.totalWarnings)}
+                    />
+                    <InfoItem
+                      label="Files with warnings"
+                      value={String(warningSummary.filesWithWarnings)}
+                    />
+                  </div>
+
+                  <div className="warning-summary-columns">
+                    <div>
+                      <h5>Severity Counts</h5>
+                      <ul className="clean-list warning-summary-list">
+                        {warningSummary.severityCounts.map((item) => (
+                          <li key={`severity-${item.label}`}>
+                            {item.label}: {item.count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h5>Warning Codes</h5>
+                      <ul className="clean-list warning-summary-list">
+                        {warningSummary.codeCounts.map((item) => (
+                          <li key={`code-${item.label}`}>
+                            {item.label}: {item.count}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h5>Affected Files</h5>
+                      <ul className="clean-list warning-summary-list">
+                        {warningSummary.affectedFiles.map((item) => (
+                          <li key={`file-${item.filename}`}>
+                            {item.filename}: {item.count} warning(s)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <div className="report-main">
             <div className="score-box large-score">
@@ -1284,6 +1354,70 @@ function isRasterFile(result: UploadResponse): boolean {
 
 function isVectorFile(result: UploadResponse): boolean {
   return result.file_category === "vector" || getGisType(result) === "vector";
+}
+
+type WarningSummaryCount = {
+  label: string;
+  count: number;
+};
+
+type WarningSummaryFile = {
+  filename: string;
+  count: number;
+};
+
+type WarningSummary = {
+  totalWarnings: number;
+  filesWithWarnings: number;
+  severityCounts: WarningSummaryCount[];
+  codeCounts: WarningSummaryCount[];
+  affectedFiles: WarningSummaryFile[];
+};
+
+function buildWarningSummary(results: UploadResponse[]): WarningSummary {
+  const severityCounts = new Map<string, number>();
+  const codeCounts = new Map<string, number>();
+  const affectedFiles: WarningSummaryFile[] = [];
+  let totalWarnings = 0;
+
+  results.forEach((result) => {
+    const warnings = result.warnings ?? [];
+
+    if (warnings.length > 0) {
+      affectedFiles.push({
+        filename: getWarningSummaryFilename(result),
+        count: warnings.length,
+      });
+    }
+
+    warnings.forEach((warning) => {
+      const severity = warning.severity || "unknown";
+      const code = warning.code || "UNKNOWN_WARNING";
+
+      totalWarnings += 1;
+      severityCounts.set(severity, (severityCounts.get(severity) ?? 0) + 1);
+      codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1);
+    });
+  });
+
+  return {
+    totalWarnings,
+    filesWithWarnings: affectedFiles.length,
+    severityCounts: mapCountsToList(severityCounts),
+    codeCounts: mapCountsToList(codeCounts),
+    affectedFiles,
+  };
+}
+
+function getWarningSummaryFilename(result: UploadResponse): string {
+  return result.original_filename || result.saved_filename || "Unnamed file";
+}
+
+function mapCountsToList(counts: Map<string, number>): WarningSummaryCount[] {
+  return Array.from(counts.entries()).map(([label, count]) => ({
+    label,
+    count,
+  }));
 }
 
 type FileReportCardProps = {
