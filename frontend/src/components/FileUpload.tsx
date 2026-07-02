@@ -22,6 +22,7 @@ type FileFilter = (typeof FILE_FILTER_KEYS)[keyof typeof FILE_FILTER_KEYS];
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
+  const crsCorrectionRef = useRef<HTMLDivElement | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(
@@ -198,6 +199,13 @@ function FileUpload() {
     });
   }
 
+  function handleViewCrsCorrectionSteps(): void {
+    crsCorrectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
   const fileFilterCounts = getFileFilterCounts(allUploadResults);
@@ -235,6 +243,11 @@ function FileUpload() {
   const reportQualityBadge = datasetReadinessSummary
     ? buildReportQualityBadge(datasetReadinessSummary)
     : null;
+  const showCrsCorrectionShortcut = hasCrsBlockingIssue({
+    datasetStatus: datasetReadinessSummary?.status,
+    crsStatus: crsSummary?.status,
+    correctedValidationStatus: correctedValidationSummary?.status,
+  });
 
   return (
     <section className="upload-section">
@@ -375,6 +388,16 @@ function FileUpload() {
                 </div>
               )}
             </div>
+
+            {showCrsCorrectionShortcut && crsCorrectionInstructionSummary && (
+              <button
+                className="secondary-button report-shortcut-button"
+                onClick={handleViewCrsCorrectionSteps}
+                type="button"
+              >
+                View CRS correction steps
+              </button>
+            )}
 
             <div className="info-grid compact-grid report-preview-grid">
               <InfoItem label="Status" value={datasetReadinessSummary.status} />
@@ -736,7 +759,7 @@ function FileUpload() {
           )}
 
           {crsCorrectionInstructionSummary && (
-            <div className="crs-correction-box">
+            <div className="crs-correction-box" ref={crsCorrectionRef}>
               <div className="card-header-row">
                 <div>
                   <h4>CRS Correction Instructions</h4>
@@ -1616,6 +1639,24 @@ type ReportQualityBadge = {
   label: string;
   reason: string;
 };
+
+type CrsBlockingInput = {
+  datasetStatus?: string;
+  crsStatus?: string;
+  correctedValidationStatus?: string;
+};
+
+function hasCrsBlockingIssue({
+  datasetStatus,
+  crsStatus,
+  correctedValidationStatus,
+}: CrsBlockingInput): boolean {
+  return (
+    datasetStatus === "needs_crs_review" ||
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(crsStatus ?? "") ||
+    correctedValidationStatus === "blocked"
+  );
+}
 
 type PlainTextReportSummaryInput = {
   datasetSession: DatasetSession;
