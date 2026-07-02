@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode, type Ref } from "react";
 import {
   uploadFile,
   uploadFiles,
@@ -19,6 +19,22 @@ const FILE_FILTER_KEYS = {
 
 type FileFilter = (typeof FILE_FILTER_KEYS)[keyof typeof FILE_FILTER_KEYS];
 
+const REPORT_SECTION_KEYS = {
+  CORRECTED_VALIDATION: "correctedValidation",
+  CRS_REVIEW: "crsReview",
+  CRS_GUIDANCE: "crsGuidance",
+  CRS_CORRECTION: "crsCorrection",
+  BOUNDS_REVIEW: "boundsReview",
+  RASTER_VECTOR_RELATIONSHIP: "rasterVectorRelationship",
+  TASK_RECOMMENDATION: "taskRecommendation",
+  PREPARATION_PLAN: "preparationPlan",
+  DATASET_ISSUES: "datasetIssues",
+  FILE_RESULTS: "fileResults",
+} as const;
+
+type ReportSectionKey =
+  (typeof REPORT_SECTION_KEYS)[keyof typeof REPORT_SECTION_KEYS];
+
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
@@ -36,6 +52,9 @@ function FileUpload() {
   const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
   const [selectedFileFilter, setSelectedFileFilter] =
     useState<FileFilter>(FILE_FILTER_KEYS.ALL);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Partial<Record<ReportSectionKey, boolean>>
+  >({});
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
@@ -191,20 +210,43 @@ function FileUpload() {
     setSelectedFileFilter(filter);
   }
 
+  function isSectionCollapsed(sectionKey: ReportSectionKey): boolean {
+    return collapsedSections[sectionKey] === true;
+  }
+
+  function toggleSection(sectionKey: ReportSectionKey): void {
+    setCollapsedSections((currentSections) => ({
+      ...currentSections,
+      [sectionKey]: !currentSections[sectionKey],
+    }));
+  }
+
+  function expandSection(sectionKey: ReportSectionKey): void {
+    setCollapsedSections((currentSections) => ({
+      ...currentSections,
+      [sectionKey]: false,
+    }));
+  }
+
   function handleViewWarningFiles(): void {
+    expandSection(REPORT_SECTION_KEYS.FILE_RESULTS);
     handleSelectFileFilter(FILE_FILTER_KEYS.WARNINGS);
-    window.requestAnimationFrame(() => {
+
+    window.setTimeout(() => {
       fileOverviewRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
-    });
+    }, 0);
   }
 
   function handleViewCrsCorrectionSteps(): void {
-    crsCorrectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
+    expandSection(REPORT_SECTION_KEYS.CRS_CORRECTION);
+    window.requestAnimationFrame(() => {
+      crsCorrectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     });
   }
 
@@ -213,13 +255,18 @@ function FileUpload() {
       return;
     }
 
-    const stepRef =
-      preparationStepRefs.current[normalizeStepTitle(firstActionableStepTitle)];
-    const scrollTarget = stepRef ?? preparationPlanRef.current;
+    expandSection(REPORT_SECTION_KEYS.PREPARATION_PLAN);
+    window.requestAnimationFrame(() => {
+      const stepRef =
+        preparationStepRefs.current[
+          normalizeStepTitle(firstActionableStepTitle)
+        ];
+      const scrollTarget = stepRef ?? preparationPlanRef.current;
 
-    scrollTarget?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
+      scrollTarget?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     });
   }
 
@@ -575,8 +622,14 @@ function FileUpload() {
           </div>
 
           {correctedValidationSummary && (
-            <div
+            <CollapsibleSection
               className={`corrected-validation-box validation-${correctedValidationSummary.status}`}
+              isCollapsed={isSectionCollapsed(
+                REPORT_SECTION_KEYS.CORRECTED_VALIDATION,
+              )}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.CORRECTED_VALIDATION}
+              title="Corrected Re-upload Validation"
             >
               <div className="card-header-row">
                 <div>
@@ -628,11 +681,17 @@ function FileUpload() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </CollapsibleSection>
           )}
 
           {crsSummary && (
-            <div className="crs-review-box">
+            <CollapsibleSection
+              className="crs-review-box"
+              isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.CRS_REVIEW)}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.CRS_REVIEW}
+              title="CRS Review"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>CRS Review</h4>
@@ -706,11 +765,17 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {crsResolutionGuidanceSummary && (
-            <div className="crs-guidance-box">
+            <CollapsibleSection
+              className="crs-guidance-box"
+              isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.CRS_GUIDANCE)}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.CRS_GUIDANCE}
+              title="CRS Resolution Guidance"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>CRS Resolution Guidance</h4>
@@ -790,11 +855,20 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {crsCorrectionInstructionSummary && (
-            <div className="crs-correction-box" ref={crsCorrectionRef}>
+            <CollapsibleSection
+              className="crs-correction-box"
+              isCollapsed={isSectionCollapsed(
+                REPORT_SECTION_KEYS.CRS_CORRECTION,
+              )}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.CRS_CORRECTION}
+              sectionRef={crsCorrectionRef}
+              title="CRS Correction Instructions"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>CRS Correction Instructions</h4>
@@ -910,11 +984,17 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {boundsSummary && (
-            <div className="bounds-review-box">
+            <CollapsibleSection
+              className="bounds-review-box"
+              isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.BOUNDS_REVIEW)}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.BOUNDS_REVIEW}
+              title="Bounds Review"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>Bounds Review</h4>
@@ -980,11 +1060,19 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {rasterVectorRelationshipSummary && (
-            <div className="relationship-review-box">
+            <CollapsibleSection
+              className="relationship-review-box"
+              isCollapsed={isSectionCollapsed(
+                REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP,
+              )}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP}
+              title="Raster-Vector Relationship"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>Raster-Vector Relationship</h4>
@@ -1058,11 +1146,19 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {taskRecommendationSummary && (
-            <div className="task-recommendation-box">
+            <CollapsibleSection
+              className="task-recommendation-box"
+              isCollapsed={isSectionCollapsed(
+                REPORT_SECTION_KEYS.TASK_RECOMMENDATION,
+              )}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.TASK_RECOMMENDATION}
+              title="Dataset Task Recommendation"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>Dataset Task Recommendation</h4>
@@ -1131,11 +1227,20 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
           {preparationPlanSummary && (
-            <div className="preparation-plan-box" ref={preparationPlanRef}>
+            <CollapsibleSection
+              className="preparation-plan-box"
+              isCollapsed={isSectionCollapsed(
+                REPORT_SECTION_KEYS.PREPARATION_PLAN,
+              )}
+              onToggle={toggleSection}
+              sectionKey={REPORT_SECTION_KEYS.PREPARATION_PLAN}
+              sectionRef={preparationPlanRef}
+              title="Dataset Preparation Plan"
+            >
               <div className="card-header-row">
                 <div>
                   <h4>Dataset Preparation Plan</h4>
@@ -1239,130 +1344,186 @@ function FileUpload() {
                   </ul>
                 </>
               )}
-            </div>
+            </CollapsibleSection>
           )}
 
-          <div className="report-columns">
-            <div>
-              <h4>Dataset Issues</h4>
+          <CollapsibleSection
+            className="report-columns-section"
+            isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.DATASET_ISSUES)}
+            onToggle={toggleSection}
+            sectionKey={REPORT_SECTION_KEYS.DATASET_ISSUES}
+            title="Dataset Issues"
+          >
+            <div className="report-columns">
+              <div>
+                <h4>Dataset Issues</h4>
 
-              {datasetReadinessSummary.issues.length === 0 ? (
-                <p className="success-text">
-                  No dataset-level issues detected.
-                </p>
-              ) : (
-                <ul className="clean-list">
-                  {datasetReadinessSummary.issues.map((issue, index) => (
-                    <li key={`dataset-issue-${index}`}>{issue}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <div>
-              <h4>Recommended Next Actions</h4>
-
-              <ul className="clean-list">
-                {datasetReadinessSummary.recommended_actions.map(
-                  (action, index) => (
-                    <li key={`dataset-action-${index}`}>{action}</li>
-                  ),
+                {datasetReadinessSummary.issues.length === 0 ? (
+                  <p className="success-text">
+                    No dataset-level issues detected.
+                  </p>
+                ) : (
+                  <ul className="clean-list">
+                    {datasetReadinessSummary.issues.map((issue, index) => (
+                      <li key={`dataset-issue-${index}`}>{issue}</li>
+                    ))}
+                  </ul>
                 )}
-              </ul>
+              </div>
+
+              <div>
+                <h4>Recommended Next Actions</h4>
+
+                <ul className="clean-list">
+                  {datasetReadinessSummary.recommended_actions.map(
+                    (action, index) => (
+                      <li key={`dataset-action-${index}`}>{action}</li>
+                    ),
+                  )}
+                </ul>
+              </div>
             </div>
-          </div>
+          </CollapsibleSection>
         </div>
       )}
 
       {allUploadResults.length > 0 && (
-        <div className="card full-width-card" ref={fileOverviewRef}>
-          <div className="card-header-row">
-            <h3>Uploaded Files Overview</h3>
-            <span className="small-muted">
-              {filteredUploadResults.length} of {allUploadResults.length} file(s)
-            </span>
+        <CollapsibleSection
+          className="file-results-section"
+          isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.FILE_RESULTS)}
+          onToggle={toggleSection}
+          sectionKey={REPORT_SECTION_KEYS.FILE_RESULTS}
+          title="Uploaded Files Overview / File-Level Analysis"
+        >
+          <div className="card full-width-card" ref={fileOverviewRef}>
+            <div className="card-header-row">
+              <h3>Uploaded Files Overview</h3>
+              <span className="small-muted">
+                {filteredUploadResults.length} of {allUploadResults.length}{" "}
+                file(s)
+              </span>
+            </div>
+
+            <FileFilterTabs
+              counts={fileFilterCounts}
+              selectedFilter={selectedFileFilter}
+              onSelectFilter={handleSelectFileFilter}
+            />
+
+            {filteredUploadResults.length === 0 ? (
+              <p className="empty-filter-message">No files match this filter.</p>
+            ) : (
+              <div className="file-results-table-wrapper">
+                <table className="file-results-table">
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Category</th>
+                      <th>GIS Type</th>
+                      <th>Readiness</th>
+                      <th>Status</th>
+                      <th>Warnings</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredUploadResults.map((result) => {
+                      const gisType = getGisType(result);
+                      const readinessScore =
+                        result.readiness_report?.readiness_score ?? null;
+                      const readinessStatus =
+                        result.readiness_report?.status ?? "unknown";
+                      const warningCount = result.warnings?.length ?? 0;
+
+                      return (
+                        <tr key={result.saved_filename}>
+                          <td>
+                            <strong>{result.original_filename}</strong>
+                          </td>
+                          <td>{result.file_category}</td>
+                          <td>{gisType}</td>
+                          <td>
+                            {readinessScore !== null
+                              ? `${readinessScore}/100`
+                              : "N/A"}
+                          </td>
+                          <td>
+                            <span
+                              className={`status-pill status-${readinessStatus}`}
+                            >
+                              {readinessStatus}
+                            </span>
+                          </td>
+                          <td>{warningCount}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          <FileFilterTabs
-            counts={fileFilterCounts}
-            selectedFilter={selectedFileFilter}
-            onSelectFilter={handleSelectFileFilter}
-          />
-
-          {filteredUploadResults.length === 0 ? (
-            <p className="empty-filter-message">No files match this filter.</p>
-          ) : (
-            <div className="file-results-table-wrapper">
-              <table className="file-results-table">
-                <thead>
-                  <tr>
-                    <th>Filename</th>
-                    <th>Category</th>
-                    <th>GIS Type</th>
-                    <th>Readiness</th>
-                    <th>Status</th>
-                    <th>Warnings</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredUploadResults.map((result) => {
-                    const gisType = getGisType(result);
-                    const readinessScore =
-                      result.readiness_report?.readiness_score ?? null;
-                    const readinessStatus =
-                      result.readiness_report?.status ?? "unknown";
-                    const warningCount = result.warnings?.length ?? 0;
-
-                    return (
-                      <tr key={result.saved_filename}>
-                        <td>
-                          <strong>{result.original_filename}</strong>
-                        </td>
-                        <td>{result.file_category}</td>
-                        <td>{gisType}</td>
-                        <td>
-                          {readinessScore !== null
-                            ? `${readinessScore}/100`
-                            : "N/A"}
-                        </td>
-                        <td>
-                          <span className={`status-pill status-${readinessStatus}`}>
-                            {readinessStatus}
-                          </span>
-                        </td>
-                        <td>{warningCount}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div className="file-report-section">
+            <div className="section-title-row">
+              <div>
+                <p className="eyebrow">File-Level Analysis</p>
+                <h3>Detailed File Reports</h3>
+              </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {allUploadResults.length > 0 && (
-        <div className="file-report-section">
-          <div className="section-title-row">
-            <div>
-              <p className="eyebrow">File-Level Analysis</p>
-              <h3>Detailed File Reports</h3>
-            </div>
+            {filteredUploadResults.length === 0 ? (
+              <p className="empty-filter-message">No files match this filter.</p>
+            ) : (
+              <div className="file-report-grid">
+                {filteredUploadResults.map((result) => (
+                  <FileReportCard key={result.saved_filename} result={result} />
+                ))}
+              </div>
+            )}
           </div>
-
-          {filteredUploadResults.length === 0 ? (
-            <p className="empty-filter-message">No files match this filter.</p>
-          ) : (
-            <div className="file-report-grid">
-              {filteredUploadResults.map((result) => (
-                <FileReportCard key={result.saved_filename} result={result} />
-              ))}
-            </div>
-          )}
-        </div>
+        </CollapsibleSection>
       )}
     </section>
+  );
+}
+
+type CollapsibleSectionProps = {
+  children: ReactNode;
+  className?: string;
+  isCollapsed: boolean;
+  onToggle: (sectionKey: ReportSectionKey) => void;
+  sectionKey: ReportSectionKey;
+  sectionRef?: Ref<HTMLDivElement>;
+  title: string;
+};
+
+function CollapsibleSection({
+  children,
+  className,
+  isCollapsed,
+  onToggle,
+  sectionKey,
+  sectionRef,
+  title,
+}: CollapsibleSectionProps) {
+  return (
+    <div className={className} ref={sectionRef}>
+      <div className="collapsible-section-header">
+        <h4>{title}</h4>
+        <button
+          className="collapsible-section-toggle"
+          onClick={() => onToggle(sectionKey)}
+          type="button"
+        >
+          {isCollapsed ? "Show" : "Hide"}
+        </button>
+      </div>
+
+      <div className="collapsible-section-body" hidden={isCollapsed}>
+        {children}
+      </div>
+    </div>
   );
 }
 
