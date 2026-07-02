@@ -2,9 +2,9 @@ def generate_dataset_bounds_summary(files: list[dict], crs_status: str) -> dict:
     """
     Generate dataset-level bounds and spatial relationship summary.
 
-    V1 rule:
-    - If CRS is mixed, missing, or unresolved, do not perform real overlap judgment.
-    - Bounds can exist, but overlap comparison is not reliable until CRS is resolved.
+    Part 18 rule:
+    - If CRS is missing, mixed, or unresolved, bounds review stays blocked.
+    - If CRS is consistent, bounds review can run and validate corrected re-upload.
     """
 
     spatial_files = [
@@ -94,7 +94,8 @@ def generate_dataset_bounds_summary(files: list[dict], crs_status: str) -> dict:
         status = "overlapping_bounds"
         issues: list[str] = []
         actions = [
-            "Bounds overlap across spatial files. Next step should check detailed alignment and raster-vector relationship."
+            "Corrected re-upload validation passed the bounds check.",
+            "Bounds overlap across spatial files. Next step should check detailed alignment and raster-vector relationship.",
         ]
     elif overlap_count == 0:
         status = "no_spatial_overlap"
@@ -102,7 +103,9 @@ def generate_dataset_bounds_summary(files: list[dict], crs_status: str) -> dict:
             "Spatial files do not appear to overlap based on their bounding boxes."
         ]
         actions = [
-            "Confirm CRS and source data. Reproject or replace files if they should represent the same area."
+            "CRS is now comparable, but bounds do not overlap.",
+            "Confirm source data, project area, and reprojection outputs.",
+            "Reproject or replace files if they should represent the same area.",
         ]
     else:
         status = "partial_spatial_overlap"
@@ -110,7 +113,8 @@ def generate_dataset_bounds_summary(files: list[dict], crs_status: str) -> dict:
             "Some spatial files overlap, but others do not."
         ]
         actions = [
-            "Review files with non-overlapping bounds before GeoAI preparation."
+            "CRS is now comparable, but only partial bounds overlap was detected.",
+            "Review files with non-overlapping bounds before GeoAI preparation.",
         ]
 
     return {
@@ -201,17 +205,20 @@ def _build_bounds_summary_text(
 
     if status == "overlapping_bounds":
         return (
-            f"Bounds comparison found overlap in all {pair_count} spatial file pair(s) "
-            f"across {spatial_file_count} spatial file(s)."
+            f"Corrected re-upload validation passed. Bounds comparison found overlap "
+            f"in all {pair_count} spatial file pair(s) across "
+            f"{spatial_file_count} spatial file(s)."
         )
 
     if status == "no_spatial_overlap":
         return (
-            f"Bounds comparison found no overlap across {pair_count} spatial file pair(s)."
+            f"Corrected re-upload validation can run because CRS is comparable, "
+            f"but bounds comparison found no overlap across {pair_count} spatial file pair(s)."
         )
 
     if status == "partial_spatial_overlap":
         return (
+            f"Corrected re-upload validation can run because CRS is comparable. "
             f"Bounds comparison found {overlap_count} overlapping pair(s) out of "
             f"{pair_count} spatial file pair(s)."
         )

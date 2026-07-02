@@ -265,6 +265,18 @@
   color: #991b1b;
 }
 
+/* Corrected validation statuses */
+
+.status-passed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-needs_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 /* CRS correction statuses */
 
 .status-correction_required {
@@ -340,7 +352,8 @@
 
 /* Preparation plan statuses */
 
-.status-plan_ready {
+.status-plan_ready,
+.status-ready {
   background: #dcfce7;
   color: #166534;
 }
@@ -360,6 +373,29 @@
 }
 
 /* Report section boxes */
+
+.corrected-validation-box {
+  margin-top: 24px;
+  padding: 18px;
+  border: 1px solid #dbe7fb;
+  border-radius: 18px;
+  overflow-wrap: anywhere;
+}
+
+.validation-passed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.validation-blocked {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.validation-needs_review {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
 
 .crs-review-box {
   margin-top: 24px;
@@ -427,7 +463,8 @@
 .task-recommendation-box .info-grid,
 .relationship-review-box .info-grid,
 .preparation-plan-box .info-grid,
-.crs-correction-box .info-grid {
+.crs-correction-box .info-grid,
+.corrected-validation-box .info-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -519,23 +556,12 @@
   .task-recommendation-box .info-grid,
   .relationship-review-box .info-grid,
   .preparation-plan-box .info-grid,
-  .crs-correction-box .info-grid {
+  .crs-correction-box .info-grid,
+  .corrected-validation-box .info-grid {
     grid-template-columns: 1fr;
   }
 
   .tool-instruction-grid {
     grid-template-columns: 1fr;
   }
-}
-.plan-step-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
-}
-
-.plan-step-header .status-pill {
-  margin-left: auto;
 }

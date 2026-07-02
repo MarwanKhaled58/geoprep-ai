@@ -6,9 +6,10 @@ def generate_dataset_task_recommendation_summary(
     """
     Generate dataset-level GeoAI task recommendations.
 
-    V1 purpose:
+    Part 18 purpose:
     - Convert raster/vector relationship into possible GeoAI task suggestions.
     - Respect blockers from CRS and bounds checks.
+    - Confirm corrected re-upload validation when CRS, bounds, and relationship pass.
     - Avoid claiming the dataset is training-ready too early.
     """
 
@@ -62,6 +63,7 @@ def generate_dataset_task_recommendation_summary(
             recommended_task=recommended_task,
             blockers=blockers,
             vector_role=vector_role,
+            readiness_status=readiness_status,
         ),
     }
 
@@ -194,6 +196,7 @@ def _build_task_summary(
 
     if readiness_status == "task_candidate":
         return (
+            "Corrected re-upload validation passed for task recommendation. "
             f"GeoPrep AI recommends '{task_label}' as a candidate GeoAI task. "
             "The dataset still needs detailed alignment and label quality checks before export."
         )
@@ -234,12 +237,21 @@ def _build_task_recommended_actions(
     recommended_task: str,
     blockers: list[str],
     vector_role: str,
+    readiness_status: str,
 ) -> list[str]:
     """
     Build recommended actions for the task recommendation.
     """
 
     actions: list[str] = []
+
+    if readiness_status == "task_candidate":
+        actions.append(
+            "Corrected re-upload validation passed for CRS, bounds, and raster-vector relationship checks."
+        )
+        actions.append(
+            "Continue with detailed alignment validation before exporting model-ready data."
+        )
 
     if "crs_review_required" in blockers:
         actions.append("Resolve CRS issues before preparing this dataset for a GeoAI task.")
@@ -248,11 +260,13 @@ def _build_task_recommended_actions(
         actions.append("Review spatial bounds and overlap after CRS issues are resolved.")
 
     if "relationship_review_required" in blockers:
-        actions.append("Confirm raster-vector relationship before generating labels, masks, or training samples.")
+        actions.append(
+            "Confirm raster-vector relationship before generating labels, masks, or training samples."
+        )
 
     if recommended_task == "point_based_object_detection_or_sample_extraction":
         actions.append(
-            "After CRS and alignment checks, validate that point annotations fall inside the raster extent."
+            "Validate that point annotations fall inside the raster extent."
         )
         actions.append(
             "Prepare point labels as object centers, sample locations, or detection annotations depending on the target model."
@@ -260,12 +274,12 @@ def _build_task_recommended_actions(
 
     if recommended_task == "semantic_or_instance_segmentation":
         actions.append(
-            "After CRS and alignment checks, prepare polygons for mask generation or segmentation labels."
+            "Prepare polygons for mask generation or segmentation labels after alignment checks."
         )
 
     if recommended_task == "linear_feature_extraction":
         actions.append(
-            "After CRS and alignment checks, prepare line features for linear feature extraction."
+            "Prepare line features for linear feature extraction after alignment checks."
         )
 
     if recommended_task == "mixed_geoai_annotation_workflow":
@@ -281,6 +295,11 @@ def _build_task_recommended_actions(
     if recommended_task == "vector_quality_review_or_label_preparation":
         actions.append(
             "Continue with vector geometry validation, attribute review, and label schema preparation."
+        )
+
+    if vector_role == "unknown_vector_role":
+        actions.append(
+            "Review vector geometry role before finalizing the GeoAI task."
         )
 
     if not actions:

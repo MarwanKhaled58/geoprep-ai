@@ -280,6 +280,11 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
 def generate_dataset_crs_summary(files: list[dict]) -> dict:
     """
     Compare CRS information across spatial files in the dataset.
+
+    Part 18 update:
+    - Normalize known CRS text into EPSG labels before comparison.
+    - This allows corrected re-uploads to validate successfully when one file
+      reports EPSG directly and another reports equivalent WKT text.
     """
 
     spatial_files = [
@@ -317,12 +322,12 @@ def generate_dataset_crs_summary(files: list[dict]) -> dict:
             files_missing_crs.append(filename)
             continue
 
-        if isinstance(epsg, int):
-            crs_label = f"EPSG:{epsg}"
-        elif isinstance(crs_text, str) and crs_text:
-            crs_label = crs_text
-            files_with_unresolved_crs.append(filename)
-        else:
+        crs_label = _build_comparable_crs_label(
+            epsg=epsg,
+            crs_text=crs_text,
+        )
+
+        if crs_label is None:
             files_with_unresolved_crs.append(filename)
             crs_label = "Unresolved CRS"
 
@@ -381,6 +386,11 @@ def generate_dataset_crs_summary(files: list[dict]) -> dict:
         actions.append(
             "CRS is consistent across spatial files. Next step should compare bounds and spatial overlap."
         )
+
+        if any(_has_inferred_crs_label(file) for file in spatial_files):
+            actions.append(
+                "At least one CRS was normalized from CRS text to an EPSG label for comparison."
+            )
 
     return {
         "status": status,
@@ -661,7 +671,7 @@ def _resolve_dataset_status(
     if composition == "unsupported_files_present":
         return "needs_cleanup"
 
-    if crs_status in {"missing_crs", "mixed_crs"}:
+    if crs_status in {"missing_crs", "mixed_crs", "unresolved_crs"}:
         return "needs_crs_review"
 
     if bounds_status in {"missing_bounds", "no_spatial_overlap"}:
@@ -807,6 +817,70 @@ def _build_crs_summary_text(
     return (
         f"All {spatial_file_count} spatial file(s) use one consistent CRS definition."
     )
+
+
+def _build_comparable_crs_label(
+    epsg: object,
+    crs_text: object,
+) -> str | None:
+    """
+    Build a CRS label suitable for dataset-level comparison.
+
+    This prevents equivalent CRS values from being treated as different only
+    because one file reports EPSG and another reports WKT text.
+    """
+
+    if isinstance(epsg, int):
+        return f"EPSG:{epsg}"
+
+    inferred_epsg = _infer_epsg_from_crs_text(crs_text)
+
+    if inferred_epsg:
+        return f"EPSG:{inferred_epsg}"
+
+    if isinstance(crs_text, str) and crs_text.strip():
+        return None
+
+    return None
+
+
+def _infer_epsg_from_crs_text(crs_text: object) -> int | None:
+    """
+    Infer common EPSG codes from CRS text.
+
+    This is intentionally conservative. More CRS inference rules can be added
+    later as GeoPrep AI supports more project areas and CRS definitions.
+    """
+
+    if not isinstance(crs_text, str):
+        return None
+
+    normalized = crs_text.lower()
+
+    if "epsg:32618" in normalized:
+        return 32618
+
+    if "wgs 84" in normalized and "utm zone 18n" in normalized:
+        return 32618
+
+    if "epsg:4326" in normalized:
+        return 4326
+
+    if "wgs 84" in normalized and "longlat" in normalized:
+        return 4326
+
+    return None
+
+
+def _has_inferred_crs_label(file: dict) -> bool:
+    """
+    Return True when CRS was inferred from text rather than direct EPSG metadata.
+    """
+
+    epsg = file.get("epsg")
+    crs_text = file.get("crs_text")
+
+    return not isinstance(epsg, int) and _infer_epsg_from_crs_text(crs_text) is not None
 
 
 def _normalize_bounds(bounds: object) -> dict | None:

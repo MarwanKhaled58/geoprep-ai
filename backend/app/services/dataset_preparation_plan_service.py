@@ -9,9 +9,10 @@ def generate_dataset_preparation_plan_summary(
     """
     Generate a practical dataset preparation plan.
 
-    V1 purpose:
+    Part 18 purpose:
     - Convert analysis summaries into ordered preparation steps.
     - Explain current blockers.
+    - Confirm corrected re-upload validation when CRS, bounds, and relationship pass.
     - Give the user a clear next workflow.
     """
 
@@ -28,6 +29,7 @@ def generate_dataset_preparation_plan_summary(
         bounds_summary=bounds_summary,
         raster_vector_relationship_summary=raster_vector_relationship_summary,
         task_recommendation_summary=task_recommendation_summary,
+        blockers=blockers,
     )
 
     status = _resolve_plan_status(
@@ -105,6 +107,7 @@ def _build_preparation_steps(
     bounds_summary: dict,
     raster_vector_relationship_summary: dict,
     task_recommendation_summary: dict,
+    blockers: list[str],
 ) -> list[dict]:
     """
     Build ordered dataset preparation steps.
@@ -114,8 +117,10 @@ def _build_preparation_steps(
 
     crs_status = crs_summary.get("status")
     bounds_status = bounds_summary.get("status")
+    relationship_status = raster_vector_relationship_summary.get("status")
     relationship_type = raster_vector_relationship_summary.get("relationship_type")
     recommended_task = task_recommendation_summary.get("recommended_task")
+    task_status = task_recommendation_summary.get("status")
     target_crs = crs_resolution_guidance_summary.get("recommended_target_crs")
 
     if crs_status in {"missing_crs", "mixed_crs", "unresolved_crs"}:
@@ -135,7 +140,7 @@ def _build_preparation_steps(
             )
         )
 
-    if target_crs:
+    if target_crs and crs_status in {"missing_crs", "mixed_crs", "unresolved_crs"}:
         steps.append(
             _create_step(
                 order=len(steps) + 1,
@@ -156,6 +161,21 @@ def _build_preparation_steps(
                     "Reproject files that do not match the target CRS.",
                     "Re-upload or re-run inspection after CRS correction.",
                 ],
+            )
+        )
+
+    if crs_status == "consistent_crs":
+        steps.append(
+            _create_step(
+                order=len(steps) + 1,
+                title="Validate corrected CRS",
+                status="passed",
+                description=(
+                    "Corrected re-upload validation confirmed that spatial files "
+                    "now use one comparable CRS."
+                ),
+                expected_result="CRS is consistent across raster and vector files.",
+                actions=crs_summary.get("recommended_actions", []),
             )
         )
 
@@ -184,12 +204,34 @@ def _build_preparation_steps(
             )
         )
 
+    if bounds_status == "overlapping_bounds":
+        steps.append(
+            _create_step(
+                order=len(steps) + 1,
+                title="Validate bounds overlap",
+                status="passed",
+                description=(
+                    "Corrected re-upload validation confirmed that raster and vector "
+                    "bounds overlap."
+                ),
+                expected_result=(
+                    "Raster and vector files represent overlapping spatial coverage."
+                ),
+                actions=bounds_summary.get("recommended_actions", []),
+            )
+        )
+
+    validation_step_status = _resolve_validation_step_status(
+        blockers=blockers,
+        relationship_status=relationship_status,
+    )
+
     if relationship_type == "raster_to_point_annotations":
         steps.append(
             _create_step(
                 order=len(steps) + 1,
                 title="Validate point annotations against raster",
-                status="blocked",
+                status=validation_step_status,
                 description=(
                     "Point annotations should be validated against the raster "
                     "after CRS and bounds are fixed."
@@ -214,7 +256,7 @@ def _build_preparation_steps(
             _create_step(
                 order=len(steps) + 1,
                 title="Validate polygon labels against raster",
-                status="blocked",
+                status=validation_step_status,
                 description=(
                     "Polygon labels should be validated before mask generation "
                     "or segmentation preparation."
@@ -236,7 +278,7 @@ def _build_preparation_steps(
             _create_step(
                 order=len(steps) + 1,
                 title="Validate line features against raster",
-                status="blocked",
+                status=validation_step_status,
                 description=(
                     "Line features should be validated against raster coverage "
                     "before extraction workflows."
@@ -256,12 +298,33 @@ def _build_preparation_steps(
             )
         )
 
+    if relationship_status == "candidate_geoai_dataset":
+        steps.append(
+            _create_step(
+                order=len(steps) + 1,
+                title="Confirm raster-vector relationship",
+                status="passed",
+                description=(
+                    "Raster-vector relationship is trusted for the current "
+                    "inspection stage."
+                ),
+                expected_result=(
+                    "Raster and vector files can move forward to task-specific "
+                    "preparation checks."
+                ),
+                actions=raster_vector_relationship_summary.get(
+                    "recommended_actions",
+                    [],
+                ),
+            )
+        )
+
     if recommended_task:
         steps.append(
             _create_step(
                 order=len(steps) + 1,
                 title="Prepare GeoAI task inputs",
-                status="planned",
+                status=_resolve_task_step_status(task_status),
                 description=(
                     "Prepare model input data for the recommended task: "
                     f"{recommended_task.replace('_', ' ')}."
@@ -277,7 +340,7 @@ def _build_preparation_steps(
         _create_step(
             order=len(steps) + 1,
             title="Export model-ready package",
-            status="planned",
+            status=_resolve_export_step_status(blockers),
             description=(
                 "Export the prepared dataset after CRS, bounds, relationship, "
                 "and task checks are complete."
@@ -344,6 +407,52 @@ def _resolve_plan_status(
     return "plan_needs_review"
 
 
+def _resolve_validation_step_status(
+    blockers: list[str],
+    relationship_status: str,
+) -> str:
+    """
+    Resolve status for geometry/label validation steps.
+    """
+
+    if blockers:
+        return "blocked"
+
+    if relationship_status == "candidate_geoai_dataset":
+        return "ready"
+
+    return "planned"
+
+
+def _resolve_task_step_status(task_status: str) -> str:
+    """
+    Resolve preparation-plan step status from task status.
+    """
+
+    if task_status == "task_candidate":
+        return "ready"
+
+    if task_status in {
+        "blocked_by_crs_review",
+        "blocked_by_bounds_review",
+        "blocked_by_relationship_review",
+    }:
+        return "blocked"
+
+    return "planned"
+
+
+def _resolve_export_step_status(blockers: list[str]) -> str:
+    """
+    Resolve export step status.
+    """
+
+    if blockers:
+        return "planned"
+
+    return "ready"
+
+
 def _build_plan_summary(
     status: str,
     blockers: list[str],
@@ -369,8 +478,9 @@ def _build_plan_summary(
 
     if status == "plan_ready":
         return (
-            f"GeoPrep AI generated a {step_count}-step preparation plan. "
-            "The dataset can continue to the next preparation stage."
+            f"Corrected re-upload validation passed. GeoPrep AI generated a "
+            f"{step_count}-step preparation plan. The dataset can continue to "
+            "task-specific preparation and export checks."
         )
 
     return (
@@ -390,6 +500,14 @@ def _build_plan_recommended_actions(
 
     actions: list[str] = []
 
+    if status == "plan_ready":
+        actions.append(
+            "Corrected re-upload validation passed for CRS, bounds, and raster-vector relationship checks."
+        )
+        actions.append(
+            "Continue with the ready preparation steps before exporting the model-ready package."
+        )
+
     if status == "blocked_by_crs":
         actions.append("Start with CRS resolution before running other preparation steps.")
 
@@ -405,13 +523,25 @@ def _build_plan_recommended_actions(
         )
 
     if steps:
-        first_step = steps[0]
+        first_step = _find_first_actionable_step(steps)
         actions.append(f"Begin with Step {first_step['order']}: {first_step['title']}.")
 
     if not actions:
         actions.append("Follow the preparation steps in order.")
 
     return _deduplicate_text_items(actions)
+
+
+def _find_first_actionable_step(steps: list[dict]) -> dict:
+    """
+    Find first step that still needs action.
+    """
+
+    for step in steps:
+        if step.get("status") in {"required", "blocked", "ready", "planned"}:
+            return step
+
+    return steps[0]
 
 
 def _deduplicate_text_items(items: list[str]) -> list[str]:

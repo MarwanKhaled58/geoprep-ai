@@ -6,10 +6,11 @@ def generate_raster_vector_relationship_summary(
     """
     Generate dataset-level raster-vector relationship summary.
 
-    V1 purpose:
+    Part 18 purpose:
     - Detect whether raster and vector files exist together.
     - Detect likely vector role from geometry types.
-    - Avoid claiming usable raster-vector relationship when CRS or bounds checks are blocked.
+    - Keep relationship blocked while CRS or bounds are not trusted.
+    - Confirm corrected re-upload validation when CRS is consistent and bounds overlap.
     """
 
     raster_files = [
@@ -113,8 +114,9 @@ def generate_raster_vector_relationship_summary(
         return {
             "status": "blocked_by_bounds_review",
             "summary": (
-                "Raster and vector files are present, but their spatial relationship needs "
-                "bounds and overlap review before GeoAI preparation."
+                "Raster and vector files are present and CRS is comparable, but their "
+                "spatial relationship still needs bounds and overlap review before "
+                "GeoAI preparation."
             ),
             "raster_file_count": len(raster_files),
             "vector_file_count": len(vector_files),
@@ -133,7 +135,8 @@ def generate_raster_vector_relationship_summary(
         return {
             "status": "candidate_geoai_dataset",
             "summary": (
-                "Raster and vector files are present and their bounds overlap. "
+                "Corrected re-upload validation passed. Raster and vector files are "
+                "in a comparable CRS and their bounds overlap. "
                 f"The vector data appears suitable as {vector_role.replace('_', ' ')}."
             ),
             "raster_file_count": len(raster_files),
@@ -142,6 +145,7 @@ def generate_raster_vector_relationship_summary(
             "vector_role": vector_role,
             "issues": [],
             "recommended_actions": [
+                "Raster-vector relationship is now trusted for the current inspection stage.",
                 _recommended_action_for_vector_role(vector_role),
                 "Next step should check detailed spatial alignment, label quality, and preparation requirements.",
             ],

@@ -85,6 +85,14 @@ function FileUpload() {
   const taskRecommendationSummary =
     datasetReadinessSummary?.task_recommendation_summary;
 
+  const correctedValidationSummary = buildCorrectedValidationSummary({
+    crsStatus: crsSummary?.status,
+    boundsStatus: boundsSummary?.status,
+    relationshipStatus: rasterVectorRelationshipSummary?.status,
+    taskStatus: taskRecommendationSummary?.status,
+    planStatus: preparationPlanSummary?.status,
+  });
+
   return (
     <section className="upload-section">
       <div className="hero-card">
@@ -95,9 +103,9 @@ function FileUpload() {
             Upload raster, vector, image, document, or supporting dataset files.
             GeoPrep AI will classify them, inspect GIS metadata when possible,
             analyze readiness, compare CRS, provide CRS resolution guidance,
-            generate CRS correction instructions, review bounds, detect
-            raster-vector relationships, recommend GeoAI tasks, generate a
-            preparation plan, and recommend next actions.
+            generate CRS correction instructions, validate corrected re-uploads,
+            review bounds, detect raster-vector relationships, recommend GeoAI
+            tasks, generate a preparation plan, and recommend next actions.
           </p>
         </div>
 
@@ -204,6 +212,63 @@ function FileUpload() {
               </div>
             </div>
           </div>
+
+          {correctedValidationSummary && (
+            <div
+              className={`corrected-validation-box validation-${correctedValidationSummary.status}`}
+            >
+              <div className="card-header-row">
+                <div>
+                  <h4>Corrected Re-upload Validation</h4>
+                  <p className="small-muted">
+                    Checks whether CRS correction and re-upload solved the
+                    dataset blockers.
+                  </p>
+                </div>
+
+                <span
+                  className={`status-pill status-${correctedValidationSummary.status}`}
+                >
+                  {formatCodeValue(correctedValidationSummary.status)}
+                </span>
+              </div>
+
+              <p>{correctedValidationSummary.summary}</p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="CRS"
+                  value={formatCodeValue(correctedValidationSummary.crsStatus)}
+                />
+                <InfoItem
+                  label="Bounds"
+                  value={formatCodeValue(
+                    correctedValidationSummary.boundsStatus,
+                  )}
+                />
+                <InfoItem
+                  label="Raster-vector"
+                  value={formatCodeValue(
+                    correctedValidationSummary.relationshipStatus,
+                  )}
+                />
+                <InfoItem
+                  label="Task"
+                  value={formatCodeValue(correctedValidationSummary.taskStatus)}
+                />
+              </div>
+
+              <h5>Validation Checks</h5>
+
+              <ul className="clean-list">
+                {correctedValidationSummary.checks.map((check, index) => (
+                  <li key={`corrected-validation-check-${index}`}>
+                    {check}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {crsSummary && (
             <div className="crs-review-box">
@@ -745,12 +810,10 @@ function FileUpload() {
                   }
                 />
                 <InfoItem
-                  label="First step"
-                  value={
-                    preparationPlanSummary.steps.length > 0
-                      ? preparationPlanSummary.steps[0].title
-                      : "Not available"
-                  }
+                  label="First actionable step"
+                  value={getFirstActionableStepTitle(
+                    preparationPlanSummary.steps,
+                  )}
                 />
               </div>
 
@@ -1132,6 +1195,146 @@ function getImportantMetadata(
   }
 
   return items;
+}
+
+type CorrectedValidationInput = {
+  crsStatus?: string;
+  boundsStatus?: string;
+  relationshipStatus?: string;
+  taskStatus?: string;
+  planStatus?: string;
+};
+
+type CorrectedValidationSummary = {
+  status: string;
+  summary: string;
+  crsStatus: string;
+  boundsStatus: string;
+  relationshipStatus: string;
+  taskStatus: string;
+  checks: string[];
+};
+
+function buildCorrectedValidationSummary({
+  crsStatus,
+  boundsStatus,
+  relationshipStatus,
+  taskStatus,
+  planStatus,
+}: CorrectedValidationInput): CorrectedValidationSummary | null {
+  if (!crsStatus || !boundsStatus || !relationshipStatus || !taskStatus) {
+    return null;
+  }
+
+  const normalizedCrsStatus = crsStatus;
+  const normalizedBoundsStatus = boundsStatus;
+  const normalizedRelationshipStatus = relationshipStatus;
+  const normalizedTaskStatus = taskStatus;
+  const normalizedPlanStatus = planStatus ?? "unknown";
+
+  const crsPassed = normalizedCrsStatus === "consistent_crs";
+  const boundsPassed = normalizedBoundsStatus === "overlapping_bounds";
+  const relationshipPassed =
+    normalizedRelationshipStatus === "candidate_geoai_dataset";
+  const taskPassed = normalizedTaskStatus === "task_candidate";
+  const planPassed = normalizedPlanStatus === "plan_ready";
+
+  if (crsPassed && boundsPassed && relationshipPassed && taskPassed) {
+    return {
+      status: "passed",
+      summary:
+        "Corrected re-upload validation passed. CRS is consistent, bounds overlap, raster-vector relationship is trusted, and a GeoAI task candidate is available.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "CRS validation passed.",
+        "Bounds overlap validation passed.",
+        "Raster-vector relationship validation passed.",
+        "Task recommendation is now a candidate workflow.",
+        planPassed
+          ? "Preparation plan is ready."
+          : "Preparation plan still needs review before export.",
+      ],
+    };
+  }
+
+  if (!crsPassed) {
+    return {
+      status: "blocked",
+      summary:
+        "Corrected re-upload validation is still blocked by CRS review. Reproject or confirm CRS, then upload again.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "CRS validation has not passed yet.",
+        "Bounds and raster-vector relationship checks should not be trusted until CRS is resolved.",
+      ],
+    };
+  }
+
+  if (!boundsPassed) {
+    return {
+      status: "needs_review",
+      summary:
+        "CRS validation passed, but bounds validation still needs review before the dataset can move forward.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "CRS validation passed.",
+        "Bounds overlap validation has not fully passed yet.",
+        "Review project area, source files, and reprojection outputs.",
+      ],
+    };
+  }
+
+  if (!relationshipPassed) {
+    return {
+      status: "needs_review",
+      summary:
+        "CRS and bounds validation passed, but raster-vector relationship still needs review.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "CRS validation passed.",
+        "Bounds overlap validation passed.",
+        "Raster-vector relationship validation still needs review.",
+      ],
+    };
+  }
+
+  return {
+    status: "needs_review",
+    summary:
+      "Spatial validation passed, but task recommendation or preparation plan still needs review.",
+    crsStatus: normalizedCrsStatus,
+    boundsStatus: normalizedBoundsStatus,
+    relationshipStatus: normalizedRelationshipStatus,
+    taskStatus: normalizedTaskStatus,
+    checks: [
+      "CRS validation passed.",
+      "Bounds overlap validation passed.",
+      "Raster-vector relationship validation passed.",
+      "Task recommendation or preparation plan still needs review.",
+    ],
+  };
+}
+
+function getFirstActionableStepTitle(
+  steps: Array<{ title: string; status: string }>,
+): string {
+  const actionableStep = steps.find((step) =>
+    ["required", "blocked", "ready", "planned"].includes(step.status),
+  );
+
+  return actionableStep?.title ?? steps[0]?.title ?? "Not available";
 }
 
 type ToolInstructionCardProps = {
