@@ -23,6 +23,17 @@
   margin-top: 22px;
 }
 
+.upload-panel .secondary-button {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.upload-panel .secondary-button:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
 .report-card {
   background: white;
   border: 1px solid #dbe7fb;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   uploadFile,
   uploadFiles,
@@ -7,6 +7,7 @@ import {
 } from "../api/uploadApi";
 
 function FileUpload() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(
@@ -23,6 +24,18 @@ function FileUpload() {
     setUploadResult(null);
     setBatchResult(null);
     setError("");
+  }
+
+  function handleStartNewDataset(): void {
+    setSelectedFiles([]);
+    setUploadResult(null);
+    setBatchResult(null);
+    setError("");
+    setDatasetSessionId(undefined);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
 
   async function handleUpload(): Promise<void> {
@@ -110,10 +123,24 @@ function FileUpload() {
         </div>
 
         <div className="upload-panel">
-          <input type="file" multiple onChange={handleFileChange} />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileChange}
+          />
 
           <button onClick={handleUpload} disabled={isUploading}>
             {isUploading ? "Analyzing..." : "Analyze Dataset"}
+          </button>
+
+          <button
+            className="secondary-button"
+            onClick={handleStartNewDataset}
+            disabled={isUploading}
+            type="button"
+          >
+            Start New Dataset
           </button>
         </div>
 
