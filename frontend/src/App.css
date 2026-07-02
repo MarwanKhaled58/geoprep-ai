@@ -180,6 +180,41 @@
   overflow-x: auto;
 }
 
+.file-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.file-filter-tab {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.file-filter-tab:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.active-file-filter {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.empty-filter-message {
+  margin-top: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
 .file-results-table {
   width: 100%;
   border-collapse: collapse;

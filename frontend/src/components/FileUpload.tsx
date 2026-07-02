@@ -19,6 +19,8 @@ function FileUpload() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
   const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
+  const [selectedFileFilter, setSelectedFileFilter] =
+    useState<FileFilter>("all");
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
@@ -169,6 +171,11 @@ function FileUpload() {
 
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
+  const fileFilterCounts = getFileFilterCounts(allUploadResults);
+  const filteredUploadResults = filterUploadResults(
+    allUploadResults,
+    selectedFileFilter,
+  );
 
   const datasetSession =
     batchResult?.dataset_session ?? uploadResult?.dataset_session;
@@ -1102,56 +1109,66 @@ function FileUpload() {
           <div className="card-header-row">
             <h3>Uploaded Files Overview</h3>
             <span className="small-muted">
-              {allUploadResults.length} file(s)
+              {filteredUploadResults.length} of {allUploadResults.length} file(s)
             </span>
           </div>
 
-          <div className="file-results-table-wrapper">
-            <table className="file-results-table">
-              <thead>
-                <tr>
-                  <th>Filename</th>
-                  <th>Category</th>
-                  <th>GIS Type</th>
-                  <th>Readiness</th>
-                  <th>Status</th>
-                  <th>Warnings</th>
-                </tr>
-              </thead>
+          <FileFilterTabs
+            counts={fileFilterCounts}
+            selectedFilter={selectedFileFilter}
+            onSelectFilter={setSelectedFileFilter}
+          />
 
-              <tbody>
-                {allUploadResults.map((result) => {
-                  const gisType = getGisType(result);
-                  const readinessScore =
-                    result.readiness_report?.readiness_score ?? null;
-                  const readinessStatus =
-                    result.readiness_report?.status ?? "unknown";
-                  const warningCount = result.warnings?.length ?? 0;
+          {filteredUploadResults.length === 0 ? (
+            <p className="empty-filter-message">No files match this filter.</p>
+          ) : (
+            <div className="file-results-table-wrapper">
+              <table className="file-results-table">
+                <thead>
+                  <tr>
+                    <th>Filename</th>
+                    <th>Category</th>
+                    <th>GIS Type</th>
+                    <th>Readiness</th>
+                    <th>Status</th>
+                    <th>Warnings</th>
+                  </tr>
+                </thead>
 
-                  return (
-                    <tr key={result.saved_filename}>
-                      <td>
-                        <strong>{result.original_filename}</strong>
-                      </td>
-                      <td>{result.file_category}</td>
-                      <td>{gisType}</td>
-                      <td>
-                        {readinessScore !== null
-                          ? `${readinessScore}/100`
-                          : "N/A"}
-                      </td>
-                      <td>
-                        <span className={`status-pill status-${readinessStatus}`}>
-                          {readinessStatus}
-                        </span>
-                      </td>
-                      <td>{warningCount}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                <tbody>
+                  {filteredUploadResults.map((result) => {
+                    const gisType = getGisType(result);
+                    const readinessScore =
+                      result.readiness_report?.readiness_score ?? null;
+                    const readinessStatus =
+                      result.readiness_report?.status ?? "unknown";
+                    const warningCount = result.warnings?.length ?? 0;
+
+                    return (
+                      <tr key={result.saved_filename}>
+                        <td>
+                          <strong>{result.original_filename}</strong>
+                        </td>
+                        <td>{result.file_category}</td>
+                        <td>{gisType}</td>
+                        <td>
+                          {readinessScore !== null
+                            ? `${readinessScore}/100`
+                            : "N/A"}
+                        </td>
+                        <td>
+                          <span className={`status-pill status-${readinessStatus}`}>
+                            {readinessStatus}
+                          </span>
+                        </td>
+                        <td>{warningCount}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1164,15 +1181,109 @@ function FileUpload() {
             </div>
           </div>
 
-          <div className="file-report-grid">
-            {allUploadResults.map((result) => (
-              <FileReportCard key={result.saved_filename} result={result} />
-            ))}
-          </div>
+          {filteredUploadResults.length === 0 ? (
+            <p className="empty-filter-message">No files match this filter.</p>
+          ) : (
+            <div className="file-report-grid">
+              {filteredUploadResults.map((result) => (
+                <FileReportCard key={result.saved_filename} result={result} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
   );
+}
+
+type FileFilter = "all" | "raster" | "vector" | "supporting" | "unsupported" | "warnings";
+
+type FileFilterCounts = Record<FileFilter, number>;
+
+type FileFilterTabsProps = {
+  counts: FileFilterCounts;
+  selectedFilter: FileFilter;
+  onSelectFilter: (filter: FileFilter) => void;
+};
+
+const FILE_FILTERS: Array<{ key: FileFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "raster", label: "Raster" },
+  { key: "vector", label: "Vector" },
+  { key: "supporting", label: "Supporting" },
+  { key: "unsupported", label: "Unsupported" },
+  { key: "warnings", label: "Warnings" },
+];
+
+function FileFilterTabs({
+  counts,
+  selectedFilter,
+  onSelectFilter,
+}: FileFilterTabsProps) {
+  return (
+    <div className="file-filter-tabs" aria-label="Uploaded file filters">
+      {FILE_FILTERS.map((filter) => (
+        <button
+          className={`file-filter-tab ${
+            selectedFilter === filter.key ? "active-file-filter" : ""
+          }`}
+          key={filter.key}
+          onClick={() => onSelectFilter(filter.key)}
+          type="button"
+        >
+          {filter.label} ({counts[filter.key]})
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function getFileFilterCounts(results: UploadResponse[]): FileFilterCounts {
+  return {
+    all: results.length,
+    raster: results.filter(isRasterFile).length,
+    vector: results.filter(isVectorFile).length,
+    supporting: results.filter((result) => result.file_category === "supporting")
+      .length,
+    unsupported: results.filter((result) => result.file_category === "unsupported")
+      .length,
+    warnings: results.filter((result) => (result.warnings?.length ?? 0) > 0).length,
+  };
+}
+
+function filterUploadResults(
+  results: UploadResponse[],
+  selectedFilter: FileFilter,
+): UploadResponse[] {
+  if (selectedFilter === "all") {
+    return results;
+  }
+
+  if (selectedFilter === "raster") {
+    return results.filter(isRasterFile);
+  }
+
+  if (selectedFilter === "vector") {
+    return results.filter(isVectorFile);
+  }
+
+  if (selectedFilter === "supporting") {
+    return results.filter((result) => result.file_category === "supporting");
+  }
+
+  if (selectedFilter === "unsupported") {
+    return results.filter((result) => result.file_category === "unsupported");
+  }
+
+  return results.filter((result) => (result.warnings?.length ?? 0) > 0);
+}
+
+function isRasterFile(result: UploadResponse): boolean {
+  return result.file_category === "raster" || getGisType(result) === "raster";
+}
+
+function isVectorFile(result: UploadResponse): boolean {
+  return result.file_category === "vector" || getGisType(result) === "vector";
 }
 
 type FileReportCardProps = {
