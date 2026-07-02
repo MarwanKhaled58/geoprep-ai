@@ -286,6 +286,38 @@ function FileUpload() {
             </div>
           </div>
 
+          <div className="report-preview">
+            <h4>Report Preview</h4>
+
+            <div className="info-grid compact-grid report-preview-grid">
+              <InfoItem label="Status" value={datasetReadinessSummary.status} />
+              <InfoItem
+                label="Readiness"
+                value={`${datasetReadinessSummary.readiness_score}/100`}
+              />
+              <InfoItem
+                label="Composition"
+                value={formatReportPreviewComposition(datasetReadinessSummary)}
+              />
+              <InfoItem
+                label="Recommended task"
+                value={formatReportPreviewTask(taskRecommendationSummary)}
+              />
+              <InfoItem
+                label="First actionable step"
+                value={formatReportPreviewStep(preparationPlanSummary?.steps)}
+              />
+              <InfoItem
+                label="Main issues"
+                value={String(datasetReadinessSummary.issues.length)}
+              />
+              <InfoItem
+                label="Next actions"
+                value={String(datasetReadinessSummary.recommended_actions.length)}
+              />
+            </div>
+          </div>
+
           <div className="report-main">
             <div className="score-box large-score">
               <span className="score-number">
@@ -1214,6 +1246,39 @@ function formatCodeValue(value: string): string {
 
 function formatCodeList(values: string[]): string {
   return values.map((value) => formatCodeValue(value)).join(", ");
+}
+
+function formatReportPreviewComposition(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): string {
+  return [
+    `${datasetReadinessSummary.raster_count} raster`,
+    `${datasetReadinessSummary.vector_count} vector`,
+    `${datasetReadinessSummary.supporting_file_count} supporting`,
+    `${datasetReadinessSummary.unsupported_file_count} unsupported`,
+  ].join(", ");
+}
+
+function formatReportPreviewTask(
+  taskRecommendationSummary:
+    | DatasetReadinessSummary["task_recommendation_summary"]
+    | undefined,
+): string {
+  if (!taskRecommendationSummary?.recommended_task) {
+    return "Not available";
+  }
+
+  return formatCodeValue(taskRecommendationSummary.recommended_task);
+}
+
+function formatReportPreviewStep(
+  steps: Array<{ title: string; status: string }> | undefined,
+): string {
+  if (!steps || steps.length === 0) {
+    return "Not available";
+  }
+
+  return getFirstActionableStepTitle(steps);
 }
 
 function formatCrsLabel(crsLabel: string): string {

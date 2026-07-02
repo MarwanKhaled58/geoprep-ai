@@ -73,6 +73,22 @@
   margin-top: 18px;
 }
 
+.report-preview {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.report-preview h4 {
+  margin: 0;
+}
+
+.report-preview-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .large-score {
   margin: 0;
 }
@@ -561,6 +577,10 @@
 
 @media (max-width: 800px) {
   .report-main {
+    grid-template-columns: 1fr;
+  }
+
+  .report-preview-grid {
     grid-template-columns: 1fr;
   }
 
