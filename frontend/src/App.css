@@ -65,6 +65,25 @@
   white-space: nowrap;
 }
 
+.report-actions-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.report-actions-panel h4 {
+  margin: 0;
+}
+
+.report-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .report-main {
   display: grid;
   grid-template-columns: 180px 1fr;

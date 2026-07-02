@@ -363,7 +363,17 @@ function FileUpload() {
               <h3>Dataset Readiness Summary</h3>
             </div>
 
-            <div className="report-header-actions">
+            <span
+              className={`status-pill status-${datasetReadinessSummary.status}`}
+            >
+              {datasetReadinessSummary.status}
+            </span>
+          </div>
+
+          <div className="report-actions-panel">
+            <h4>Report Actions</h4>
+
+            <div className="report-actions-buttons">
               <button
                 className="secondary-button export-report-button"
                 onClick={handleExportReportJson}
@@ -388,11 +398,25 @@ function FileUpload() {
                 {isSummaryCopied ? "Copied!" : "Copy Report Summary"}
               </button>
 
-              <span
-                className={`status-pill status-${datasetReadinessSummary.status}`}
-              >
-                {datasetReadinessSummary.status}
-              </span>
+              {showCrsCorrectionShortcut && crsCorrectionInstructionSummary && (
+                <button
+                  className="secondary-button report-shortcut-button"
+                  onClick={handleViewCrsCorrectionSteps}
+                  type="button"
+                >
+                  View CRS correction steps
+                </button>
+              )}
+
+              {firstActionableStepTitle && (
+                <button
+                  className="secondary-button report-shortcut-button"
+                  onClick={handleViewFirstAction}
+                  type="button"
+                >
+                  View first action
+                </button>
+              )}
             </div>
           </div>
 
@@ -409,26 +433,6 @@ function FileUpload() {
                 </div>
               )}
             </div>
-
-            {showCrsCorrectionShortcut && crsCorrectionInstructionSummary && (
-              <button
-                className="secondary-button report-shortcut-button"
-                onClick={handleViewCrsCorrectionSteps}
-                type="button"
-              >
-                View CRS correction steps
-              </button>
-            )}
-
-            {firstActionableStepTitle && (
-              <button
-                className="secondary-button report-shortcut-button"
-                onClick={handleViewFirstAction}
-                type="button"
-              >
-                View first action
-              </button>
-            )}
 
             <div className="info-grid compact-grid report-preview-grid">
               <InfoItem label="Status" value={datasetReadinessSummary.status} />
