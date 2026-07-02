@@ -167,6 +167,9 @@ function FileUpload() {
     taskStatus: taskRecommendationSummary?.status,
     planStatus: preparationPlanSummary?.status,
   });
+  const reportQualityBadge = datasetReadinessSummary
+    ? buildReportQualityBadge(datasetReadinessSummary)
+    : null;
 
   return (
     <section className="upload-section">
@@ -287,7 +290,18 @@ function FileUpload() {
           </div>
 
           <div className="report-preview">
-            <h4>Report Preview</h4>
+            <div className="report-preview-header">
+              <h4>Report Preview</h4>
+
+              {reportQualityBadge && (
+                <div
+                  className={`report-quality-badge quality-${reportQualityBadge.status}`}
+                >
+                  <strong>{reportQualityBadge.label}</strong>
+                  <span>{reportQualityBadge.reason}</span>
+                </div>
+              )}
+            </div>
 
             <div className="info-grid compact-grid report-preview-grid">
               <InfoItem label="Status" value={datasetReadinessSummary.status} />
@@ -1279,6 +1293,82 @@ function formatReportPreviewStep(
   }
 
   return getFirstActionableStepTitle(steps);
+}
+
+type ReportQualityBadge = {
+  status: "blocked" | "needs-review" | "ready";
+  label: string;
+  reason: string;
+};
+
+function buildReportQualityBadge(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): ReportQualityBadge {
+  const crsStatus = datasetReadinessSummary.crs_summary?.status;
+  const boundsStatus = datasetReadinessSummary.bounds_summary?.status;
+  const taskStatus = datasetReadinessSummary.task_recommendation_summary?.status;
+  const planStatus = datasetReadinessSummary.preparation_plan_summary?.status;
+  const blockers =
+    datasetReadinessSummary.preparation_plan_summary?.blockers ?? [];
+  const isCrsBlocked =
+    datasetReadinessSummary.status === "needs_crs_review" ||
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(crsStatus ?? "");
+
+  if (isCrsBlocked || blockers.length > 0) {
+    return {
+      status: "blocked",
+      label: "Blocked",
+      reason: "CRS issues must be resolved before preparation can continue.",
+    };
+  }
+
+  if (
+    datasetReadinessSummary.status === "raster_only" ||
+    datasetReadinessSummary.raster_vector_relationship_summary?.status ===
+      "raster_only"
+  ) {
+    return {
+      status: "needs-review",
+      label: "Needs Review",
+      reason:
+        "Raster-only workflow. Add labels if supervised GeoAI training is required.",
+    };
+  }
+
+  if (
+    datasetReadinessSummary.status === "vector_only" ||
+    datasetReadinessSummary.raster_vector_relationship_summary?.status ===
+      "vector_only"
+  ) {
+    return {
+      status: "needs-review",
+      label: "Needs Review",
+      reason:
+        "Vector-only workflow. Add raster imagery if labels should be matched to imagery.",
+    };
+  }
+
+  if (boundsStatus === "single_spatial_file" || planStatus === "plan_needs_review") {
+    return {
+      status: "needs-review",
+      label: "Needs Review",
+      reason: "Some preparation checks still need review.",
+    };
+  }
+
+  if (crsStatus === "consistent_crs" && taskStatus === "task_candidate") {
+    return {
+      status: "ready",
+      label: "Ready for Preparation",
+      reason: "Dataset checks are ready for task-specific preparation.",
+    };
+  }
+
+  return {
+    status: "needs-review",
+    label: "Needs Review",
+    reason: "Some preparation checks still need review.",
+  };
 }
 
 function formatCrsLabel(crsLabel: string): string {

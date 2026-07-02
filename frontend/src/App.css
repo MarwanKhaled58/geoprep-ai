@@ -85,6 +85,54 @@
   margin: 0;
 }
 
+.report-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.report-quality-badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.report-quality-badge strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.report-quality-badge span {
+  font-size: 12px;
+}
+
+.quality-blocked {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.quality-needs-review {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.quality-ready {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
 .report-preview-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
