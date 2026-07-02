@@ -8,8 +8,20 @@ import {
   type UploadResponse,
 } from "../api/uploadApi";
 
+const FILE_FILTER_KEYS = {
+  ALL: "all",
+  RASTER: "raster",
+  VECTOR: "vector",
+  SUPPORTING: "supporting",
+  UNSUPPORTED: "unsupported",
+  WARNINGS: "warnings",
+} as const;
+
+type FileFilter = (typeof FILE_FILTER_KEYS)[keyof typeof FILE_FILTER_KEYS];
+
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileOverviewRef = useRef<HTMLDivElement | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(
@@ -20,7 +32,7 @@ function FileUpload() {
   const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
   const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
   const [selectedFileFilter, setSelectedFileFilter] =
-    useState<FileFilter>("all");
+    useState<FileFilter>(FILE_FILTER_KEYS.ALL);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
@@ -37,6 +49,7 @@ function FileUpload() {
     setBatchResult(null);
     setError("");
     setDatasetSessionId(undefined);
+    handleSelectFileFilter(FILE_FILTER_KEYS.ALL);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -62,6 +75,7 @@ function FileUpload() {
           setDatasetSessionId(result.dataset_session_id);
         }
 
+        handleSelectFileFilter(FILE_FILTER_KEYS.ALL);
         setUploadResult(result);
         return;
       }
@@ -72,6 +86,7 @@ function FileUpload() {
         setDatasetSessionId(result.dataset_session_id);
       }
 
+      handleSelectFileFilter(FILE_FILTER_KEYS.ALL);
       setBatchResult(result);
       setUploadResult(result.uploads[result.uploads.length - 1] ?? null);
     } catch (err) {
@@ -167,6 +182,20 @@ function FileUpload() {
       setIsSummaryCopied(false);
       setError("Could not copy report summary to clipboard.");
     }
+  }
+
+  function handleSelectFileFilter(filter: FileFilter): void {
+    setSelectedFileFilter(filter);
+  }
+
+  function handleViewWarningFiles(): void {
+    handleSelectFileFilter(FILE_FILTER_KEYS.WARNINGS);
+    window.requestAnimationFrame(() => {
+      fileOverviewRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   }
 
   const allUploadResults =
@@ -405,6 +434,14 @@ function FileUpload() {
                       value={String(warningSummary.filesWithWarnings)}
                     />
                   </div>
+
+                  <button
+                    className="secondary-button warning-summary-action"
+                    onClick={handleViewWarningFiles}
+                    type="button"
+                  >
+                    View warning files
+                  </button>
 
                   <div className="warning-summary-columns">
                     <div>
@@ -1175,7 +1212,7 @@ function FileUpload() {
       )}
 
       {allUploadResults.length > 0 && (
-        <div className="card full-width-card">
+        <div className="card full-width-card" ref={fileOverviewRef}>
           <div className="card-header-row">
             <h3>Uploaded Files Overview</h3>
             <span className="small-muted">
@@ -1186,7 +1223,7 @@ function FileUpload() {
           <FileFilterTabs
             counts={fileFilterCounts}
             selectedFilter={selectedFileFilter}
-            onSelectFilter={setSelectedFileFilter}
+            onSelectFilter={handleSelectFileFilter}
           />
 
           {filteredUploadResults.length === 0 ? (
@@ -1266,8 +1303,6 @@ function FileUpload() {
   );
 }
 
-type FileFilter = "all" | "raster" | "vector" | "supporting" | "unsupported" | "warnings";
-
 type FileFilterCounts = Record<FileFilter, number>;
 
 type FileFilterTabsProps = {
@@ -1277,12 +1312,12 @@ type FileFilterTabsProps = {
 };
 
 const FILE_FILTERS: Array<{ key: FileFilter; label: string }> = [
-  { key: "all", label: "All" },
-  { key: "raster", label: "Raster" },
-  { key: "vector", label: "Vector" },
-  { key: "supporting", label: "Supporting" },
-  { key: "unsupported", label: "Unsupported" },
-  { key: "warnings", label: "Warnings" },
+  { key: FILE_FILTER_KEYS.ALL, label: "All" },
+  { key: FILE_FILTER_KEYS.RASTER, label: "Raster" },
+  { key: FILE_FILTER_KEYS.VECTOR, label: "Vector" },
+  { key: FILE_FILTER_KEYS.SUPPORTING, label: "Supporting" },
+  { key: FILE_FILTER_KEYS.UNSUPPORTED, label: "Unsupported" },
+  { key: FILE_FILTER_KEYS.WARNINGS, label: "Warnings" },
 ];
 
 function FileFilterTabs({
@@ -1325,23 +1360,23 @@ function filterUploadResults(
   results: UploadResponse[],
   selectedFilter: FileFilter,
 ): UploadResponse[] {
-  if (selectedFilter === "all") {
+  if (selectedFilter === FILE_FILTER_KEYS.ALL) {
     return results;
   }
 
-  if (selectedFilter === "raster") {
+  if (selectedFilter === FILE_FILTER_KEYS.RASTER) {
     return results.filter(isRasterFile);
   }
 
-  if (selectedFilter === "vector") {
+  if (selectedFilter === FILE_FILTER_KEYS.VECTOR) {
     return results.filter(isVectorFile);
   }
 
-  if (selectedFilter === "supporting") {
+  if (selectedFilter === FILE_FILTER_KEYS.SUPPORTING) {
     return results.filter((result) => result.file_category === "supporting");
   }
 
-  if (selectedFilter === "unsupported") {
+  if (selectedFilter === FILE_FILTER_KEYS.UNSUPPORTED) {
     return results.filter((result) => result.file_category === "unsupported");
   }
 

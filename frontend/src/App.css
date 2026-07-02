@@ -154,6 +154,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.warning-summary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .warning-summary-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
