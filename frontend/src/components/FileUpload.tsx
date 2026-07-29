@@ -50,10 +50,15 @@ const COLLAPSIBLE_REPORT_SECTION_KEYS: ReportSectionKey[] = [
 
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const datasetSummaryRef = useRef<HTMLDivElement | null>(null);
+  const warningSummaryRef = useRef<HTMLDivElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
   const crsCorrectionRef = useRef<HTMLDivElement | null>(null);
   const preparationPlanRef = useRef<HTMLDivElement | null>(null);
   const preparationStepRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const reportSectionRefs = useRef<
+    Partial<Record<ReportSectionKey, HTMLDivElement | null>>
+  >({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
   const [batchResult, setBatchResult] = useState<BatchUploadResponse | null>(
@@ -68,6 +73,7 @@ function FileUpload() {
   const [collapsedSections, setCollapsedSections] = useState<
     Partial<Record<ReportSectionKey, boolean>>
   >({});
+  const [reportSearchTerm, setReportSearchTerm] = useState<string>("");
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const files = Array.from(event.target.files ?? []);
@@ -241,6 +247,22 @@ function FileUpload() {
     }));
   }
 
+  function setReportSectionRef(sectionKey: ReportSectionKey) {
+    return (element: HTMLDivElement | null) => {
+      reportSectionRefs.current[sectionKey] = element;
+    };
+  }
+
+  function setCrsCorrectionSectionRef(element: HTMLDivElement | null): void {
+    crsCorrectionRef.current = element;
+    reportSectionRefs.current[REPORT_SECTION_KEYS.CRS_CORRECTION] = element;
+  }
+
+  function setPreparationPlanSectionRef(element: HTMLDivElement | null): void {
+    preparationPlanRef.current = element;
+    reportSectionRefs.current[REPORT_SECTION_KEYS.PREPARATION_PLAN] = element;
+  }
+
   function handleExpandAllReportSections(): void {
     setCollapsedSections({});
   }
@@ -298,6 +320,28 @@ function FileUpload() {
     });
   }
 
+  function handleReportSearchResultClick(match: ReportSearchMatch): void {
+    if (match.sectionKey) {
+      expandSection(match.sectionKey);
+    }
+
+    window.setTimeout(() => {
+      const sectionTarget = match.sectionKey
+        ? reportSectionRefs.current[match.sectionKey]
+        : null;
+      const target =
+        sectionTarget ??
+        (match.target === "datasetReadiness"
+          ? datasetSummaryRef.current
+          : warningSummaryRef.current);
+
+      target?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
   const fileFilterCounts = getFileFilterCounts(allUploadResults);
@@ -344,6 +388,20 @@ function FileUpload() {
     preparationPlanSummary && preparationPlanSummary.steps.length > 0
       ? getFirstActionableStepTitle(preparationPlanSummary.steps)
       : null;
+  const reportSearchMatches =
+    datasetSession && datasetReadinessSummary
+      ? getReportSearchMatches(
+          buildReportSearchIndex({
+            allUploadResults,
+            correctedValidationSummary,
+            datasetReadinessSummary,
+            datasetSession,
+            warningSummary,
+          }),
+          reportSearchTerm,
+        )
+      : [];
+  const hasReportSearchTerm = reportSearchTerm.trim().length > 0;
 
   return (
     <section className="upload-section">
@@ -513,6 +571,59 @@ function FileUpload() {
             </div>
           </div>
 
+          <div className="report-search-panel">
+            <div className="card-header-row">
+              <h4>Search report</h4>
+
+              {hasReportSearchTerm && (
+                <span className="small-muted">
+                  {reportSearchMatches.length} matching section(s)
+                </span>
+              )}
+            </div>
+
+            <div className="report-search-controls">
+              <input
+                className="report-search-input"
+                onChange={(event) => setReportSearchTerm(event.target.value)}
+                placeholder="Search report..."
+                type="search"
+                value={reportSearchTerm}
+              />
+
+              {hasReportSearchTerm && (
+                <button
+                  className="secondary-button report-search-clear-button"
+                  onClick={() => setReportSearchTerm("")}
+                  type="button"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {hasReportSearchTerm && (
+              <div className="report-search-results">
+                {reportSearchMatches.length === 0 ? (
+                  <p className="empty-filter-message">
+                    No matching report sections found.
+                  </p>
+                ) : (
+                  reportSearchMatches.map((match) => (
+                    <button
+                      className="report-search-result-button"
+                      key={match.name}
+                      onClick={() => handleReportSearchResultClick(match)}
+                      type="button"
+                    >
+                      {match.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="report-preview">
             <div className="report-preview-header">
               <h4>Report Preview</h4>
@@ -557,7 +668,7 @@ function FileUpload() {
           </div>
 
           {allUploadResults.length > 0 && (
-            <div className="warning-summary-panel">
+            <div className="warning-summary-panel" ref={warningSummaryRef}>
               <div className="card-header-row">
                 <div>
                   <h4>Warning Summary</h4>
@@ -633,7 +744,7 @@ function FileUpload() {
             </div>
           )}
 
-          <div className="report-main">
+          <div className="report-main" ref={datasetSummaryRef}>
             <div className="score-box large-score">
               <span className="score-number">
                 {datasetReadinessSummary.readiness_score}
@@ -675,6 +786,9 @@ function FileUpload() {
               )}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.CORRECTED_VALIDATION}
+              sectionRef={setReportSectionRef(
+                REPORT_SECTION_KEYS.CORRECTED_VALIDATION,
+              )}
               title="Corrected Re-upload Validation"
             >
               <div className="card-header-row">
@@ -736,6 +850,7 @@ function FileUpload() {
               isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.CRS_REVIEW)}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.CRS_REVIEW}
+              sectionRef={setReportSectionRef(REPORT_SECTION_KEYS.CRS_REVIEW)}
               title="CRS Review"
             >
               <div className="card-header-row">
@@ -820,6 +935,7 @@ function FileUpload() {
               isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.CRS_GUIDANCE)}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.CRS_GUIDANCE}
+              sectionRef={setReportSectionRef(REPORT_SECTION_KEYS.CRS_GUIDANCE)}
               title="CRS Resolution Guidance"
             >
               <div className="card-header-row">
@@ -912,7 +1028,7 @@ function FileUpload() {
               )}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.CRS_CORRECTION}
-              sectionRef={crsCorrectionRef}
+              sectionRef={setCrsCorrectionSectionRef}
               title="CRS Correction Instructions"
             >
               <div className="card-header-row">
@@ -1039,6 +1155,7 @@ function FileUpload() {
               isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.BOUNDS_REVIEW)}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.BOUNDS_REVIEW}
+              sectionRef={setReportSectionRef(REPORT_SECTION_KEYS.BOUNDS_REVIEW)}
               title="Bounds Review"
             >
               <div className="card-header-row">
@@ -1117,6 +1234,9 @@ function FileUpload() {
               )}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP}
+              sectionRef={setReportSectionRef(
+                REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP,
+              )}
               title="Raster-Vector Relationship"
             >
               <div className="card-header-row">
@@ -1203,6 +1323,9 @@ function FileUpload() {
               )}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.TASK_RECOMMENDATION}
+              sectionRef={setReportSectionRef(
+                REPORT_SECTION_KEYS.TASK_RECOMMENDATION,
+              )}
               title="Dataset Task Recommendation"
             >
               <div className="card-header-row">
@@ -1284,7 +1407,7 @@ function FileUpload() {
               )}
               onToggle={toggleSection}
               sectionKey={REPORT_SECTION_KEYS.PREPARATION_PLAN}
-              sectionRef={preparationPlanRef}
+              sectionRef={setPreparationPlanSectionRef}
               title="Dataset Preparation Plan"
             >
               <div className="card-header-row">
@@ -1398,6 +1521,7 @@ function FileUpload() {
             isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.DATASET_ISSUES)}
             onToggle={toggleSection}
             sectionKey={REPORT_SECTION_KEYS.DATASET_ISSUES}
+            sectionRef={setReportSectionRef(REPORT_SECTION_KEYS.DATASET_ISSUES)}
             title="Dataset Issues"
           >
             <div className="report-columns">
@@ -1439,6 +1563,7 @@ function FileUpload() {
           isCollapsed={isSectionCollapsed(REPORT_SECTION_KEYS.FILE_RESULTS)}
           onToggle={toggleSection}
           sectionKey={REPORT_SECTION_KEYS.FILE_RESULTS}
+          sectionRef={setReportSectionRef(REPORT_SECTION_KEYS.FILE_RESULTS)}
           title="Uploaded Files Overview / File-Level Analysis"
         >
           <div className="card full-width-card" ref={fileOverviewRef}>
@@ -1571,6 +1696,170 @@ function CollapsibleSection({
       </div>
     </div>
   );
+}
+
+type ReportSearchTarget = "datasetReadiness" | "warningSummary";
+
+type ReportSearchIndexItem = {
+  name: string;
+  sectionKey?: ReportSectionKey;
+  target?: ReportSearchTarget;
+  text: string;
+};
+
+type ReportSearchMatch = {
+  name: string;
+  sectionKey?: ReportSectionKey;
+  target?: ReportSearchTarget;
+};
+
+type ReportSearchIndexInput = {
+  allUploadResults: UploadResponse[];
+  correctedValidationSummary: CorrectedValidationSummary | null;
+  datasetReadinessSummary: DatasetReadinessSummary;
+  datasetSession: DatasetSession;
+  warningSummary: WarningSummary;
+};
+
+function buildReportSearchIndex({
+  allUploadResults,
+  correctedValidationSummary,
+  datasetReadinessSummary,
+  datasetSession,
+  warningSummary,
+}: ReportSearchIndexInput): ReportSearchIndexItem[] {
+  return [
+    {
+      name: "Dataset Readiness Summary",
+      target: "datasetReadiness",
+      text: normalizeSearchText([
+        datasetSession.dataset_session_id,
+        datasetSession.file_count,
+        datasetReadinessSummary.status,
+        datasetReadinessSummary.readiness_score,
+        datasetReadinessSummary.summary,
+        datasetReadinessSummary.raster_count,
+        datasetReadinessSummary.vector_count,
+        datasetReadinessSummary.supporting_file_count,
+        datasetReadinessSummary.unsupported_file_count,
+      ]),
+    },
+    {
+      name: "Corrected Re-upload Validation",
+      sectionKey: REPORT_SECTION_KEYS.CORRECTED_VALIDATION,
+      text: normalizeSearchText(correctedValidationSummary),
+    },
+    {
+      name: "CRS Review",
+      sectionKey: REPORT_SECTION_KEYS.CRS_REVIEW,
+      text: normalizeSearchText(datasetReadinessSummary.crs_summary),
+    },
+    {
+      name: "CRS Resolution Guidance",
+      sectionKey: REPORT_SECTION_KEYS.CRS_GUIDANCE,
+      text: normalizeSearchText(
+        datasetReadinessSummary.crs_resolution_guidance_summary,
+      ),
+    },
+    {
+      name: "CRS Correction Instructions",
+      sectionKey: REPORT_SECTION_KEYS.CRS_CORRECTION,
+      text: normalizeSearchText(
+        datasetReadinessSummary.crs_correction_instruction_summary,
+      ),
+    },
+    {
+      name: "Bounds Review",
+      sectionKey: REPORT_SECTION_KEYS.BOUNDS_REVIEW,
+      text: normalizeSearchText(datasetReadinessSummary.bounds_summary),
+    },
+    {
+      name: "Raster-Vector Relationship",
+      sectionKey: REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP,
+      text: normalizeSearchText(
+        datasetReadinessSummary.raster_vector_relationship_summary,
+      ),
+    },
+    {
+      name: "Dataset Task Recommendation",
+      sectionKey: REPORT_SECTION_KEYS.TASK_RECOMMENDATION,
+      text: normalizeSearchText(
+        datasetReadinessSummary.task_recommendation_summary,
+      ),
+    },
+    {
+      name: "Dataset Preparation Plan",
+      sectionKey: REPORT_SECTION_KEYS.PREPARATION_PLAN,
+      text: normalizeSearchText(
+        datasetReadinessSummary.preparation_plan_summary,
+      ),
+    },
+    {
+      name: "Dataset Issues",
+      sectionKey: REPORT_SECTION_KEYS.DATASET_ISSUES,
+      text: normalizeSearchText(datasetReadinessSummary.issues),
+    },
+    {
+      name: "Recommended Next Actions",
+      sectionKey: REPORT_SECTION_KEYS.DATASET_ISSUES,
+      text: normalizeSearchText(datasetReadinessSummary.recommended_actions),
+    },
+    {
+      name: "Uploaded Files Overview / File-Level Analysis",
+      sectionKey: REPORT_SECTION_KEYS.FILE_RESULTS,
+      text: normalizeSearchText([datasetSession.files, allUploadResults]),
+    },
+    {
+      name: "Warning Summary",
+      target: "warningSummary",
+      text: normalizeSearchText([warningSummary, allUploadResults]),
+    },
+  ];
+}
+
+function getReportSearchMatches(
+  searchIndex: ReportSearchIndexItem[],
+  searchTerm: string,
+): ReportSearchMatch[] {
+  const normalizedSearchTerm = normalizeSearchText(searchTerm);
+
+  if (!normalizedSearchTerm) {
+    return [];
+  }
+
+  return searchIndex
+    .filter((item) => normalizeSearchText(item.text).includes(normalizedSearchTerm))
+    .map((item) => ({
+      name: item.name,
+      sectionKey: item.sectionKey,
+      target: item.target,
+    }));
+}
+
+function normalizeSearchText(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (typeof value === "string") {
+    return value.trim().toLowerCase();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).toLowerCase();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeSearchText(item)).join(" ");
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value as Record<string, unknown>)
+      .map((item) => normalizeSearchText(item))
+      .join(" ");
+  }
+
+  return "";
 }
 
 type FileFilterCounts = Record<FileFilter, number>;

@@ -144,6 +144,76 @@
   line-height: 1.2;
 }
 
+.report-search-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.report-search-panel h4 {
+  margin: 0;
+}
+
+.report-search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.report-search-input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  font: inherit;
+}
+
+.report-search-input:focus {
+  border-color: #2563eb;
+  outline: 3px solid #bfdbfe;
+}
+
+.report-search-clear-button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.report-search-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-search-result-button {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.report-search-result-button:hover {
+  background: #eef2ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.report-search-result-button:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
 .report-actions-buttons .export-report-button:first-child {
   border-color: #93c5fd;
   color: #1d4ed8;
