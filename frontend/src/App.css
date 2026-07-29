@@ -144,6 +144,48 @@
   line-height: 1.2;
 }
 
+.report-navigation-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.report-navigation-panel h4 {
+  margin: 0;
+}
+
+.report-navigation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-navigation-button {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.report-navigation-button:hover {
+  background: #eef2ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.report-navigation-button:focus-visible {
+  outline: 3px solid #bfdbfe;
+  outline-offset: 2px;
+}
+
 .report-search-panel {
   margin-top: 20px;
   padding: 16px;

@@ -1,4 +1,10 @@
-import { useRef, useState, type ReactNode, type Ref } from "react";
+import {
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from "react";
 import {
   uploadFile,
   uploadFiles,
@@ -51,6 +57,8 @@ const COLLAPSIBLE_REPORT_SECTION_KEYS: ReportSectionKey[] = [
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const datasetSummaryRef = useRef<HTMLDivElement | null>(null);
+  const reportSearchRef = useRef<HTMLDivElement | null>(null);
+  const reportPreviewRef = useRef<HTMLDivElement | null>(null);
   const warningSummaryRef = useRef<HTMLDivElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
   const crsCorrectionRef = useRef<HTMLDivElement | null>(null);
@@ -342,6 +350,24 @@ function FileUpload() {
     }, 0);
   }
 
+  function handleReportNavigationClick(item: ReportNavigationItem): void {
+    if (item.sectionKey) {
+      expandSection(item.sectionKey);
+    }
+
+    window.setTimeout(() => {
+      const sectionTarget = item.sectionKey
+        ? reportSectionRefs.current[item.sectionKey]
+        : null;
+      const target = sectionTarget ?? item.targetRef?.current;
+
+      target?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
   const allUploadResults =
     batchResult?.uploads ?? (uploadResult ? [uploadResult] : []);
   const fileFilterCounts = getFileFilterCounts(allUploadResults);
@@ -402,6 +428,31 @@ function FileUpload() {
         )
       : [];
   const hasReportSearchTerm = reportSearchTerm.trim().length > 0;
+  const reportNavigationItems: ReportNavigationItem[] = [
+    { label: "Summary", targetRef: datasetSummaryRef },
+    { label: "Search", targetRef: reportSearchRef },
+    { label: "Preview", targetRef: reportPreviewRef },
+    { label: "Warnings", targetRef: warningSummaryRef },
+    {
+      label: "Corrected Validation",
+      sectionKey: REPORT_SECTION_KEYS.CORRECTED_VALIDATION,
+    },
+    { label: "CRS", sectionKey: REPORT_SECTION_KEYS.CRS_REVIEW },
+    { label: "CRS Guidance", sectionKey: REPORT_SECTION_KEYS.CRS_GUIDANCE },
+    {
+      label: "CRS Correction",
+      sectionKey: REPORT_SECTION_KEYS.CRS_CORRECTION,
+    },
+    { label: "Bounds", sectionKey: REPORT_SECTION_KEYS.BOUNDS_REVIEW },
+    {
+      label: "Raster-Vector",
+      sectionKey: REPORT_SECTION_KEYS.RASTER_VECTOR_RELATIONSHIP,
+    },
+    { label: "Task", sectionKey: REPORT_SECTION_KEYS.TASK_RECOMMENDATION },
+    { label: "Plan", sectionKey: REPORT_SECTION_KEYS.PREPARATION_PLAN },
+    { label: "Issues", sectionKey: REPORT_SECTION_KEYS.DATASET_ISSUES },
+    { label: "Files", sectionKey: REPORT_SECTION_KEYS.FILE_RESULTS },
+  ];
 
   return (
     <section className="upload-section">
@@ -571,7 +622,24 @@ function FileUpload() {
             </div>
           </div>
 
-          <div className="report-search-panel">
+          <div className="report-navigation-panel">
+            <h4>Report Navigation</h4>
+
+            <div className="report-navigation-buttons">
+              {reportNavigationItems.map((item) => (
+                <button
+                  className="report-navigation-button"
+                  key={item.label}
+                  onClick={() => handleReportNavigationClick(item)}
+                  type="button"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="report-search-panel" ref={reportSearchRef}>
             <div className="card-header-row">
               <h4>Search report</h4>
 
@@ -624,7 +692,7 @@ function FileUpload() {
             )}
           </div>
 
-          <div className="report-preview">
+          <div className="report-preview" ref={reportPreviewRef}>
             <div className="report-preview-header">
               <h4>Report Preview</h4>
 
@@ -1711,6 +1779,12 @@ type ReportSearchMatch = {
   name: string;
   sectionKey?: ReportSectionKey;
   target?: ReportSearchTarget;
+};
+
+type ReportNavigationItem = {
+  label: string;
+  sectionKey?: ReportSectionKey;
+  targetRef?: RefObject<HTMLDivElement | null>;
 };
 
 type ReportSearchIndexInput = {
