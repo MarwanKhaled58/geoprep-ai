@@ -90,11 +90,22 @@ def _build_file_guidance(spatial_files: list[dict]) -> list[dict]:
                 "Keep this CRS if it matches the target CRS, otherwise reproject it."
             )
         elif isinstance(crs_text, str) and crs_text:
-            status = "unresolved_epsg"
-            detected_crs = _shorten_crs_text(crs_text)
-            recommended_action = (
-                "Review this CRS manually and map it to an EPSG code if possible."
-            )
+            inferred_epsg = _infer_epsg_from_crs_text(crs_text)
+
+            if inferred_epsg:
+                status = "normalized_crs"
+                detected_crs = f"EPSG:{inferred_epsg}"
+                epsg = inferred_epsg
+                recommended_action = (
+                    f"CRS text appears to match EPSG:{inferred_epsg}; "
+                    "confirm manually if needed."
+                )
+            else:
+                status = "unresolved_epsg"
+                detected_crs = _shorten_crs_text(crs_text)
+                recommended_action = (
+                    "Review this CRS manually and map it to an EPSG code if possible."
+                )
         else:
             status = "unknown_crs"
             detected_crs = None
@@ -394,4 +405,4 @@ def _deduplicate_text_items(items: list[str]) -> list[str]:
         if item not in deduplicated:
             deduplicated.append(item)
 
-    return deduplicated  
+    return deduplicated
