@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import geopandas as gpd
 import rasterio
 
@@ -35,7 +37,11 @@ def normalize_crs(crs) -> dict:
     }
 
 
-def inspect_gis_file(file_path: str, file_category: str) -> dict:
+def inspect_gis_file(
+    file_path: str,
+    file_category: str,
+    display_filename: str | None = None,
+) -> dict:
     """
     Inspect a GIS file and return normalized metadata.
     """
@@ -44,7 +50,7 @@ def inspect_gis_file(file_path: str, file_category: str) -> dict:
         return inspect_raster(file_path)
 
     if file_category == "vector":
-        return inspect_vector(file_path)
+        return inspect_vector(file_path, display_filename=display_filename)
 
     return {
         "is_gis_file": False,
@@ -85,16 +91,34 @@ def inspect_raster(file_path: str) -> dict:
         }
 
 
-def inspect_vector(file_path: str) -> dict:
+def inspect_vector(file_path: str, display_filename: str | None = None) -> dict:
     """
     Inspect vector metadata using GeoPandas.
     """
 
-    gdf = gpd.read_file(file_path)
+    shapefile_issue = _validate_shapefile_sidecars(
+        file_path=file_path,
+        display_filename=display_filename,
+    )
+
+    if shapefile_issue:
+        return _build_failed_vector_inspection(
+            error_code="INCOMPLETE_SHAPEFILE",
+            message=shapefile_issue,
+        )
+
+    try:
+        gdf = gpd.read_file(file_path)
+    except Exception as exc:
+        return _build_failed_vector_inspection(
+            error_code="VECTOR_INSPECTION_FAILED",
+            message=str(exc),
+        )
 
     return {
         "is_gis_file": True,
         "gis_type": "vector",
+        "inspection_status": "complete",
         "crs": normalize_crs(gdf.crs),
         "metadata": {
             "feature_count": len(gdf),
@@ -110,4 +134,59 @@ def inspect_vector(file_path: str) -> dict:
             "columns": list(gdf.columns),
         },
     }
-    
+
+
+def _validate_shapefile_sidecars(
+    file_path: str,
+    display_filename: str | None = None,
+) -> str | None:
+    """
+    Validate required shapefile sidecars before opening with GeoPandas.
+    """
+
+    path = Path(file_path)
+
+    if path.suffix.lower() != ".shp":
+        return None
+
+    missing_extensions = [
+        extension
+        for extension in [".shx", ".dbf"]
+        if not path.with_suffix(extension).exists()
+    ]
+
+    if not missing_extensions:
+        return None
+
+    missing_list = ", ".join(missing_extensions)
+
+    filename = display_filename or path.name
+
+    return (
+        f"Incomplete shapefile upload. {filename} is missing required "
+        f"shapefile sidecar file(s): {missing_list}."
+    )
+
+
+def _build_failed_vector_inspection(error_code: str, message: str) -> dict:
+    """
+    Return a structured vector inspection failure without raising a 500.
+    """
+
+    return {
+        "is_gis_file": True,
+        "gis_type": "vector",
+        "inspection_status": "failed",
+        "inspection_error_code": error_code,
+        "inspection_error": message,
+        "crs": {
+            "has_crs": False,
+            "crs_text": None,
+            "epsg": None,
+            "authority": None,
+        },
+        "metadata": {
+            "inspection_error_code": error_code,
+            "inspection_error": message,
+        },
+    }

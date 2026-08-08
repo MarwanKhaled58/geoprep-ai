@@ -66,6 +66,19 @@ def generate_file_readiness_report(
             "can_continue_to_dataset": True,
         }
 
+    if gis_inspection.get("inspection_status") == "failed":
+        return {
+            "readiness_score": 20,
+            "status": "inspection_failed",
+            "summary": "The file is a GIS file attempt, but GeoPrep AI could not inspect it.",
+            "issues": _extract_issue_messages(warnings)
+            or ["GIS inspection failed."],
+            "recommended_actions": _extract_recommended_actions(warnings)
+            or ["Check that the file is valid and readable, then upload it again."],
+            "inspection_level": "classification",
+            "can_continue_to_dataset": False,
+        }
+
     gis_type = gis_inspection.get("gis_type")
     crs = gis_inspection.get("crs") or {}
 
@@ -140,4 +153,3 @@ def _extract_recommended_actions(warnings: list[dict]) -> list[str]:
             actions.append(action)
 
     return actions
-    

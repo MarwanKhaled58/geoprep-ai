@@ -87,6 +87,46 @@ def generate_file_warnings(file_classification: dict, gis_inspection: dict | Non
     crs = gis_inspection.get("crs") or {}
     metadata = gis_inspection.get("metadata") or {}
     gis_type = gis_inspection.get("gis_type")
+    inspection_status = gis_inspection.get("inspection_status")
+    inspection_error_code = gis_inspection.get("inspection_error_code")
+
+    if inspection_status == "failed":
+        if inspection_error_code == "INCOMPLETE_SHAPEFILE":
+            warnings.append(
+                _create_warning(
+                    code="INCOMPLETE_SHAPEFILE",
+                    severity="error",
+                    message=gis_inspection.get("inspection_error")
+                    or (
+                        "Incomplete shapefile upload. This .shp file is missing "
+                        "required shapefile sidecar files."
+                    ),
+                    recommended_action=(
+                        "Upload the complete shapefile set together: .shp, .shx, "
+                        ".dbf, and .prj if available."
+                    ),
+                    details={
+                        "required_sidecars": [".shx", ".dbf"],
+                        "recommended_sidecars": [".prj"],
+                        "inspection_error": gis_inspection.get("inspection_error"),
+                    },
+                )
+            )
+            return warnings
+
+        warnings.append(
+            _create_warning(
+                code="VECTOR_INSPECTION_FAILED",
+                severity="error",
+                message="GeoPrep AI could not inspect this vector file.",
+                recommended_action=(
+                    "Check that the vector file is valid and all required "
+                    "supporting files are present, then upload it again."
+                ),
+                details={"inspection_error": gis_inspection.get("inspection_error")},
+            )
+        )
+        return warnings
 
     if not crs.get("has_crs"):
         warnings.append(

@@ -47,6 +47,7 @@ async def save_uploaded_file(
     gis_inspection = inspect_gis_file(
         file_path=str(saved_path),
         file_category=file_classification["file_category"],
+        display_filename=original_filename,
     )
 
     warnings = generate_file_warnings(
@@ -120,4 +121,3 @@ async def save_multiple_uploaded_files(
         "dataset_session": final_dataset_session,
         "uploads": upload_results,
     }
-    
