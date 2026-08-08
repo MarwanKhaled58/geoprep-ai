@@ -333,6 +333,88 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.report-timeline-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.report-timeline-panel h4 {
+  margin: 0;
+}
+
+.report-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.report-timeline-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.timeline-step-label {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.timeline-status {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.timeline-passed {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.timeline-ready {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.timeline-review {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.timeline-blocked {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.timeline-na {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.timeline-step-explanation {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .report-shortcut-button {
   margin-top: 14px;
 }

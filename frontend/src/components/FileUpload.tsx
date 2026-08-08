@@ -453,6 +453,10 @@ function FileUpload() {
     { label: "Issues", sectionKey: REPORT_SECTION_KEYS.DATASET_ISSUES },
     { label: "Files", sectionKey: REPORT_SECTION_KEYS.FILE_RESULTS },
   ];
+  const reportTimelineSteps =
+    datasetSession && datasetReadinessSummary
+      ? buildReportTimelineSteps(datasetSession, datasetReadinessSummary)
+      : [];
 
   return (
     <section className="upload-section">
@@ -734,6 +738,8 @@ function FileUpload() {
               />
             </div>
           </div>
+
+          <ReportStatusTimeline steps={reportTimelineSteps} />
 
           {allUploadResults.length > 0 && (
             <div className="warning-summary-panel" ref={warningSummaryRef}>
@@ -1764,6 +1770,335 @@ function CollapsibleSection({
       </div>
     </div>
   );
+}
+
+type ReportTimelineStatus = "passed" | "ready" | "review" | "blocked" | "na";
+
+type ReportTimelineStep = {
+  label: string;
+  status: ReportTimelineStatus;
+  statusLabel: string;
+  explanation: string;
+};
+
+function ReportStatusTimeline({ steps }: { steps: ReportTimelineStep[] }) {
+  return (
+    <div className="report-timeline-panel">
+      <h4>Report Status Timeline</h4>
+
+      <div className="report-timeline">
+        {steps.map((step) => (
+          <div className="report-timeline-step" key={step.label}>
+            <span className="timeline-step-label">{step.label}</span>
+            <span className={`timeline-status timeline-${step.status}`}>
+              {step.statusLabel}
+            </span>
+            <span className="timeline-step-explanation">
+              {step.explanation}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildReportTimelineSteps(
+  datasetSession: DatasetSession,
+  datasetReadinessSummary: DatasetReadinessSummary,
+): ReportTimelineStep[] {
+  const crsSummary = datasetReadinessSummary.crs_summary;
+  const boundsSummary = datasetReadinessSummary.bounds_summary;
+  const relationshipSummary =
+    datasetReadinessSummary.raster_vector_relationship_summary;
+  const taskSummary = datasetReadinessSummary.task_recommendation_summary;
+  const planSummary = datasetReadinessSummary.preparation_plan_summary;
+
+  return [
+    buildUploadTimelineStep(datasetSession),
+    buildCrsTimelineStep(crsSummary?.status),
+    buildBoundsTimelineStep(boundsSummary?.status),
+    buildRasterVectorTimelineStep(relationshipSummary?.status),
+    buildTaskTimelineStep(taskSummary?.status),
+    buildPlanTimelineStep(planSummary),
+    buildExportTimelineStep(planSummary),
+  ];
+}
+
+function buildUploadTimelineStep(
+  datasetSession: DatasetSession,
+): ReportTimelineStep {
+  if (datasetSession.file_count > 0) {
+    return {
+      label: "Upload",
+      status: "passed",
+      statusLabel: "Passed",
+      explanation: `${datasetSession.file_count} file(s) uploaded.`,
+    };
+  }
+
+  return {
+    label: "Upload",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "No uploaded dataset files are available yet.",
+  };
+}
+
+function buildCrsTimelineStep(status: string | undefined): ReportTimelineStep {
+  if (status === "consistent_crs") {
+    return {
+      label: "CRS",
+      status: "passed",
+      statusLabel: "Passed",
+      explanation: "CRS is consistent across comparable spatial files.",
+    };
+  }
+
+  if (["mixed_crs", "missing_crs", "unresolved_crs"].includes(status ?? "")) {
+    return {
+      label: "CRS",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "CRS issues must be resolved before preparation continues.",
+    };
+  }
+
+  return {
+    label: "CRS",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "CRS status still needs review.",
+  };
+}
+
+function buildBoundsTimelineStep(
+  status: string | undefined,
+): ReportTimelineStep {
+  if (status === "overlapping_bounds") {
+    return {
+      label: "Bounds",
+      status: "passed",
+      statusLabel: "Passed",
+      explanation: "Spatial bounds overlap enough for dataset preparation.",
+    };
+  }
+
+  if (status === "single_spatial_file") {
+    return {
+      label: "Bounds",
+      status: "na",
+      statusLabel: "Not Applicable",
+      explanation: "Only one spatial file is available for bounds comparison.",
+    };
+  }
+
+  if (["blocked_by_crs_review", "no_spatial_overlap"].includes(status ?? "")) {
+    return {
+      label: "Bounds",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "Bounds checks cannot move forward yet.",
+    };
+  }
+
+  return {
+    label: "Bounds",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "Bounds readiness still needs review.",
+  };
+}
+
+function buildRasterVectorTimelineStep(
+  status: string | undefined,
+): ReportTimelineStep {
+  if (status === "candidate_geoai_dataset") {
+    return {
+      label: "Raster-Vector",
+      status: "passed",
+      statusLabel: "Passed",
+      explanation: "Raster and vector inputs appear suitable together.",
+    };
+  }
+
+  if (
+    ["raster_only", "vector_only", "single_spatial_file", "no_raster_vector_pair"].includes(
+      status ?? "",
+    )
+  ) {
+    return {
+      label: "Raster-Vector",
+      status: "na",
+      statusLabel: "Not Applicable",
+      explanation: "No raster-vector pair is available for relationship checks.",
+    };
+  }
+
+  if (
+    ["blocked_by_crs_review", "blocked_by_bounds_review"].includes(status ?? "")
+  ) {
+    return {
+      label: "Raster-Vector",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "Relationship checks are waiting on earlier blockers.",
+    };
+  }
+
+  return {
+    label: "Raster-Vector",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "Raster-vector relationship still needs review.",
+  };
+}
+
+function buildTaskTimelineStep(status: string | undefined): ReportTimelineStep {
+  if (status === "task_candidate") {
+    return {
+      label: "Task",
+      status: "ready",
+      statusLabel: "Ready",
+      explanation: "A task candidate is available for preparation.",
+    };
+  }
+
+  if (
+    [
+      "blocked_by_crs_review",
+      "blocked_by_bounds_review",
+      "blocked_by_relationship_review",
+    ].includes(status ?? "")
+  ) {
+    return {
+      label: "Task",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "Task recommendation is blocked by earlier checks.",
+    };
+  }
+
+  return {
+    label: "Task",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "Task recommendation still needs review.",
+  };
+}
+
+function buildPlanTimelineStep(
+  planSummary: DatasetReadinessSummary["preparation_plan_summary"],
+): ReportTimelineStep {
+  if (!planSummary) {
+    return {
+      label: "Plan",
+      status: "review",
+      statusLabel: "Needs Review",
+      explanation: "No preparation plan is available yet.",
+    };
+  }
+
+  if (planSummary.status === "plan_blocked" || planSummary.blockers.length > 0) {
+    return {
+      label: "Plan",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "Preparation plan has blockers to resolve.",
+    };
+  }
+
+  if (planSummary.status === "plan_needs_review") {
+    return {
+      label: "Plan",
+      status: "review",
+      statusLabel: "Needs Review",
+      explanation: "Preparation plan is available but needs review.",
+    };
+  }
+
+  if (hasReadyPreparationStep(planSummary.steps)) {
+    return {
+      label: "Plan",
+      status: "ready",
+      statusLabel: "Ready",
+      explanation: "At least one preparation step is ready to run.",
+    };
+  }
+
+  return {
+    label: "Plan",
+    status: "ready",
+    statusLabel: "Ready",
+    explanation: "Preparation plan is available.",
+  };
+}
+
+function buildExportTimelineStep(
+  planSummary: DatasetReadinessSummary["preparation_plan_summary"],
+): ReportTimelineStep {
+  if (!planSummary) {
+    return {
+      label: "Export",
+      status: "review",
+      statusLabel: "Needs Review",
+      explanation: "Export readiness depends on the preparation plan.",
+    };
+  }
+
+  if (planSummary.blockers.length > 0) {
+    return {
+      label: "Export",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "Resolve plan blockers before export/package steps.",
+    };
+  }
+
+  if (hasReadyExportStep(planSummary.steps)) {
+    return {
+      label: "Export",
+      status: "ready",
+      statusLabel: "Ready",
+      explanation: "An export/package step is ready.",
+    };
+  }
+
+  return {
+    label: "Export",
+    status: "review",
+    statusLabel: "Needs Review",
+    explanation: "Export/package readiness still needs review.",
+  };
+}
+
+function hasReadyPreparationStep(
+  steps: NonNullable<
+    DatasetReadinessSummary["preparation_plan_summary"]
+  >["steps"],
+): boolean {
+  return steps.some((step) => ["ready", "passed"].includes(step.status));
+}
+
+function hasReadyExportStep(
+  steps: NonNullable<
+    DatasetReadinessSummary["preparation_plan_summary"]
+  >["steps"],
+): boolean {
+  return steps.some((step) => {
+    const searchableStepText = normalizeSearchText([
+      step.title,
+      step.description,
+      step.expected_result,
+      step.actions,
+    ]);
+
+    return (
+      ["ready", "passed"].includes(step.status) &&
+      (searchableStepText.includes("export") ||
+        searchableStepText.includes("package"))
+    );
+  });
 }
 
 type ReportSearchTarget = "datasetReadiness" | "warningSummary";
