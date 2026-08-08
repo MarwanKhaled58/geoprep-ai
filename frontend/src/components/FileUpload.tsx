@@ -457,6 +457,7 @@ function FileUpload() {
     datasetSession && datasetReadinessSummary
       ? buildReportTimelineSteps(datasetSession, datasetReadinessSummary)
       : [];
+  const shapefileUploadMessages = buildShapefileUploadMessages(selectedFiles);
 
   return (
     <section className="upload-section">
@@ -507,6 +508,19 @@ function FileUpload() {
                 <li key={`${file.name}-${file.size}`}>{file.name}</li>
               ))}
             </ul>
+
+            {shapefileUploadMessages.length > 0 && (
+              <div className="shapefile-helper-panel">
+                {shapefileUploadMessages.map((message) => (
+                  <p
+                    className={`shapefile-helper-${message.tone}`}
+                    key={`${message.tone}-${message.text}`}
+                  >
+                    {message.text}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1773,6 +1787,118 @@ function CollapsibleSection({
 }
 
 type ReportTimelineStatus = "passed" | "ready" | "review" | "blocked" | "na";
+
+type ShapefileHelperMessage = {
+  text: string;
+  tone: "info" | "warning" | "success";
+};
+
+type SelectedShapefileGroup = {
+  baseName: string;
+  filesByExtension: Partial<Record<string, File>>;
+  hasMainFile: boolean;
+};
+
+const SHAPEFILE_COMPONENT_EXTENSIONS = [".shp", ".shx", ".dbf", ".prj"];
+const REQUIRED_SHAPEFILE_EXTENSIONS = [".shx", ".dbf"];
+
+function buildShapefileUploadMessages(
+  selectedFiles: File[],
+): ShapefileHelperMessage[] {
+  const shapefileGroups = getSelectedShapefileGroups(selectedFiles);
+
+  if (shapefileGroups.length === 0) {
+    return [];
+  }
+
+  return shapefileGroups.map((group) => {
+    if (!group.hasMainFile) {
+      return {
+        tone: "warning",
+        text: "Shapefile sidecar files were selected without a matching .shp file.",
+      };
+    }
+
+    const mainFile = group.filesByExtension[".shp"];
+    const missingRequiredExtensions = REQUIRED_SHAPEFILE_EXTENSIONS.filter(
+      (extension) => !group.filesByExtension[extension],
+    );
+
+    if (missingRequiredExtensions.length > 0) {
+      return {
+        tone: "warning",
+        text: `${
+          mainFile?.name ?? `${group.baseName}.shp`
+        } is missing required sidecar files: ${missingRequiredExtensions.join(
+          ", ",
+        )}. Upload the complete shapefile set together.`,
+      };
+    }
+
+    if (!group.filesByExtension[".prj"]) {
+      return {
+        tone: "info",
+        text: "Required shapefile files are selected. Add .prj if available so GeoPrep AI can read CRS metadata.",
+      };
+    }
+
+    return {
+      tone: "success",
+      text: `Complete shapefile group detected for ${
+        mainFile?.name ?? `${group.baseName}.shp`
+      }.`,
+    };
+  });
+}
+
+function getSelectedShapefileGroups(
+  selectedFiles: File[],
+): SelectedShapefileGroup[] {
+  const groups = new Map<string, SelectedShapefileGroup>();
+
+  selectedFiles.forEach((file) => {
+    const extension = getFileExtension(file.name);
+
+    if (!SHAPEFILE_COMPONENT_EXTENSIONS.includes(extension)) {
+      return;
+    }
+
+    const baseName = getFileBaseName(file.name).toLowerCase();
+    const group =
+      groups.get(baseName) ??
+      {
+        baseName,
+        filesByExtension: {},
+        hasMainFile: false,
+      };
+
+    group.filesByExtension[extension] = file;
+    group.hasMainFile = group.hasMainFile || extension === ".shp";
+    groups.set(baseName, group);
+  });
+
+  return Array.from(groups.values());
+}
+
+function getFileExtension(filename: string): string {
+  const lastDotIndex = filename.lastIndexOf(".");
+
+  if (lastDotIndex === -1) {
+    return "";
+  }
+
+  return filename.slice(lastDotIndex).toLowerCase();
+}
+
+function getFileBaseName(filename: string): string {
+  const lastDotIndex = filename.lastIndexOf(".");
+
+  if (lastDotIndex === -1) {
+    return filename;
+  }
+
+  return filename.slice(0, lastDotIndex);
+}
 
 type ReportTimelineStep = {
   label: string;
