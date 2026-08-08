@@ -1815,7 +1815,7 @@ function buildReportTimelineSteps(
   const planSummary = datasetReadinessSummary.preparation_plan_summary;
 
   return [
-    buildUploadTimelineStep(datasetSession),
+    buildUploadTimelineStep(datasetSession, datasetReadinessSummary.status),
     buildCrsTimelineStep(crsSummary?.status),
     buildBoundsTimelineStep(boundsSummary?.status),
     buildRasterVectorTimelineStep(relationshipSummary?.status),
@@ -1827,7 +1827,17 @@ function buildReportTimelineSteps(
 
 function buildUploadTimelineStep(
   datasetSession: DatasetSession,
+  datasetStatus: string,
 ): ReportTimelineStep {
+  if (datasetStatus === "blocked_input") {
+    return {
+      label: "Upload",
+      status: "blocked",
+      statusLabel: "Blocked",
+      explanation: "One or more uploaded files cannot continue.",
+    };
+  }
+
   if (datasetSession.file_count > 0) {
     return {
       label: "Upload",
@@ -1855,7 +1865,11 @@ function buildCrsTimelineStep(status: string | undefined): ReportTimelineStep {
     };
   }
 
-  if (["mixed_crs", "missing_crs", "unresolved_crs"].includes(status ?? "")) {
+  if (
+    ["mixed_crs", "missing_crs", "unresolved_crs", "blocked_by_input"].includes(
+      status ?? "",
+    )
+  ) {
     return {
       label: "CRS",
       status: "blocked",
@@ -1893,7 +1907,11 @@ function buildBoundsTimelineStep(
     };
   }
 
-  if (["blocked_by_crs_review", "no_spatial_overlap"].includes(status ?? "")) {
+  if (
+    ["blocked_by_input", "blocked_by_crs_review", "no_spatial_overlap"].includes(
+      status ?? "",
+    )
+  ) {
     return {
       label: "Bounds",
       status: "blocked",
@@ -1936,7 +1954,11 @@ function buildRasterVectorTimelineStep(
   }
 
   if (
-    ["blocked_by_crs_review", "blocked_by_bounds_review"].includes(status ?? "")
+    [
+      "blocked_by_input",
+      "blocked_by_crs_review",
+      "blocked_by_bounds_review",
+    ].includes(status ?? "")
   ) {
     return {
       label: "Raster-Vector",
@@ -1966,6 +1988,7 @@ function buildTaskTimelineStep(status: string | undefined): ReportTimelineStep {
 
   if (
     [
+      "blocked_by_input",
       "blocked_by_crs_review",
       "blocked_by_bounds_review",
       "blocked_by_relationship_review",
@@ -2656,6 +2679,14 @@ function buildReportQualityBadge(
   const isCrsBlocked =
     datasetReadinessSummary.status === "needs_crs_review" ||
     ["mixed_crs", "missing_crs", "unresolved_crs"].includes(crsStatus ?? "");
+
+  if (datasetReadinessSummary.status === "blocked_input") {
+    return {
+      status: "blocked",
+      label: "Blocked",
+      reason: "One or more files cannot continue to dataset checks.",
+    };
+  }
 
   if (isCrsBlocked || blockers.length > 0) {
     return {

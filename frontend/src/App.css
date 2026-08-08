@@ -753,7 +753,9 @@
 
 .status-mixed_crs,
 .status-missing_crs,
-.status-needs_crs_review {
+.status-needs_crs_review,
+.status-blocked_input,
+.status-blocked_by_input {
   background: #fee2e2;
   color: #991b1b;
 }

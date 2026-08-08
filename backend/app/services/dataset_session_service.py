@@ -92,6 +92,7 @@ def add_uploaded_file_to_dataset_session(
     gis_metadata = upload_result.get("gis_metadata") or {}
     metadata = gis_metadata.get("metadata") or {}
     crs = gis_metadata.get("crs") or {}
+    warnings = upload_result.get("warnings") or []
 
     file_summary = {
         "original_filename": upload_result.get("original_filename"),
@@ -106,6 +107,16 @@ def add_uploaded_file_to_dataset_session(
         "epsg": crs.get("epsg"),
         "bounds": _normalize_bounds(metadata.get("bounds")),
         "geometry_types": metadata.get("geometry_types") or [],
+        "can_continue_to_dataset": readiness_report.get(
+            "can_continue_to_dataset",
+            True,
+        ),
+        "inspection_status": gis_metadata.get("inspection_status"),
+        "inspection_error_code": gis_metadata.get("inspection_error_code"),
+        "warnings": warnings,
+        "file_issues": readiness_report.get("issues") or [],
+        "file_recommended_actions": readiness_report.get("recommended_actions")
+        or [],
     }
 
     dataset_session["files"].append(file_summary)
@@ -151,6 +162,19 @@ def generate_dataset_readiness_summary(files: list[dict]) -> dict:
         supporting_file_count=supporting_file_count,
         unsupported_file_count=unsupported_file_count,
     )
+
+    critical_blocked_files = _get_critical_file_blockers(files)
+
+    if critical_blocked_files:
+        return _build_blocked_input_dataset_summary(
+            files=files,
+            critical_blocked_files=critical_blocked_files,
+            average_score=average_score,
+            raster_count=raster_count,
+            vector_count=vector_count,
+            supporting_file_count=supporting_file_count,
+            unsupported_file_count=unsupported_file_count,
+        )
 
     crs_summary = generate_dataset_crs_summary(files)
 
@@ -511,6 +535,328 @@ def _generate_empty_dataset_readiness_summary() -> dict:
             ],
         },
     }
+
+
+def _build_blocked_input_dataset_summary(
+    files: list[dict],
+    critical_blocked_files: list[dict],
+    average_score: int,
+    raster_count: int,
+    vector_count: int,
+    supporting_file_count: int,
+    unsupported_file_count: int,
+) -> dict:
+    """
+    Build a lightweight dataset summary when file input blockers stop analysis.
+    """
+
+    issues = _get_critical_file_blocker_issues(critical_blocked_files)
+    recommended_actions = _get_critical_file_blocker_actions(critical_blocked_files)
+    blocked_filenames = [
+        file.get("original_filename") or "unknown file"
+        for file in critical_blocked_files
+    ]
+    blocked_file_count = len(critical_blocked_files)
+    adjusted_score = min(average_score, 30)
+
+    return {
+        "readiness_score": adjusted_score,
+        "status": "blocked_input",
+        "summary": (
+            f"{blocked_file_count} uploaded file(s) cannot continue to dataset "
+            "checks. Fix upload input issues before CRS, bounds, relationship, "
+            "task, or preparation checks are trusted."
+        ),
+        "issues": issues,
+        "recommended_actions": recommended_actions,
+        "raster_count": raster_count,
+        "vector_count": vector_count,
+        "supporting_file_count": supporting_file_count,
+        "unsupported_file_count": unsupported_file_count,
+        "crs_summary": _build_blocked_input_crs_summary(files, blocked_filenames),
+        "crs_resolution_guidance_summary": _build_blocked_input_crs_guidance(),
+        "crs_correction_instruction_summary": _build_blocked_input_crs_correction(),
+        "preparation_plan_summary": _build_blocked_input_preparation_plan(
+            issues=issues,
+            recommended_actions=recommended_actions,
+        ),
+        "bounds_summary": _build_blocked_input_bounds_summary(files),
+        "raster_vector_relationship_summary": (
+            _build_blocked_input_relationship_summary(
+                raster_count=raster_count,
+                vector_count=vector_count,
+            )
+        ),
+        "task_recommendation_summary": _build_blocked_input_task_summary(
+            recommended_actions=recommended_actions,
+        ),
+    }
+
+
+def _build_blocked_input_crs_summary(
+    files: list[dict],
+    blocked_filenames: list[str],
+) -> dict:
+    """
+    Build minimal CRS placeholder for blocked input mode.
+    """
+
+    spatial_file_count = len(
+        [
+            file
+            for file in files
+            if file.get("file_category") in {"raster", "vector"}
+            or file.get("gis_type") in {"raster", "vector"}
+        ]
+    )
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "CRS comparison was skipped because one or more uploaded files "
+            "cannot continue to dataset checks."
+        ),
+        "spatial_file_count": spatial_file_count,
+        "files_missing_crs": [],
+        "files_with_unresolved_crs": blocked_filenames,
+        "crs_groups": [],
+        "issues": [
+            "CRS review is blocked until critical upload input issues are fixed."
+        ],
+        "recommended_actions": [
+            "Fix upload input issues, then re-run GeoPrep AI checks."
+        ],
+    }
+
+
+def _build_blocked_input_crs_guidance() -> dict:
+    """
+    Build minimal CRS guidance placeholder for blocked input mode.
+    """
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "CRS resolution guidance was skipped because input files need to be "
+            "fixed first."
+        ),
+        "recommended_target_crs": None,
+        "recommended_target_epsg": None,
+        "file_guidance": [],
+        "issues": [
+            "CRS guidance is blocked until critical upload input issues are fixed."
+        ],
+        "recommended_actions": [
+            "Fix upload input issues before selecting or confirming a target CRS."
+        ],
+    }
+
+
+def _build_blocked_input_crs_correction() -> dict:
+    """
+    Build minimal CRS correction placeholder for blocked input mode.
+    """
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "CRS correction instructions are not available until the uploaded "
+            "input files can be inspected."
+        ),
+        "target_crs": None,
+        "target_epsg": None,
+        "files_to_reproject": [],
+        "files_to_confirm": [],
+        "arcgis_pro_steps": [],
+        "qgis_steps": [],
+        "python_steps": [],
+        "recommended_actions": [
+            "Fix upload input issues before generating CRS correction instructions."
+        ],
+    }
+
+
+def _build_blocked_input_bounds_summary(files: list[dict]) -> dict:
+    """
+    Build minimal bounds placeholder for blocked input mode.
+    """
+
+    spatial_file_count = len(
+        [
+            file
+            for file in files
+            if file.get("file_category") in {"raster", "vector"}
+            or file.get("gis_type") in {"raster", "vector"}
+        ]
+    )
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "Bounds review was skipped because one or more uploaded files cannot "
+            "continue to dataset checks."
+        ),
+        "spatial_file_count": spatial_file_count,
+        "files_missing_bounds": [],
+        "bounds_pairs": [],
+        "issues": [
+            "Bounds review is blocked until critical upload input issues are fixed."
+        ],
+        "recommended_actions": [
+            "Fix upload input issues, then re-run bounds review."
+        ],
+    }
+
+
+def _build_blocked_input_relationship_summary(
+    raster_count: int,
+    vector_count: int,
+) -> dict:
+    """
+    Build minimal raster-vector relationship placeholder for blocked input mode.
+    """
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "Raster-vector relationship checks were skipped because critical "
+            "upload input issues must be fixed first."
+        ),
+        "raster_file_count": raster_count,
+        "vector_file_count": vector_count,
+        "relationship_type": "blocked_by_input",
+        "vector_role": "unknown",
+        "issues": [
+            "Raster-vector relationship review is blocked by upload input issues."
+        ],
+        "recommended_actions": [
+            "Fix upload input issues before raster-vector relationship checks."
+        ],
+    }
+
+
+def _build_blocked_input_task_summary(
+    recommended_actions: list[str],
+) -> dict:
+    """
+    Build minimal task recommendation placeholder for blocked input mode.
+    """
+
+    return {
+        "status": "blocked_by_input",
+        "summary": (
+            "Task recommendation was skipped because one or more uploaded files "
+            "cannot continue to dataset checks."
+        ),
+        "recommended_task": "fix_upload_input",
+        "confidence": "low",
+        "blockers": ["input_file_blocked"],
+        "inputs_used": {},
+        "issues": [
+            "Task recommendation is blocked until upload input issues are fixed."
+        ],
+        "recommended_actions": recommended_actions,
+    }
+
+
+def _build_blocked_input_preparation_plan(
+    issues: list[str],
+    recommended_actions: list[str],
+) -> dict:
+    """
+    Build the minimal preparation plan for blocked input mode.
+    """
+
+    return {
+        "status": "plan_blocked",
+        "summary": (
+            "Preparation is blocked because one or more uploaded files cannot "
+            "continue to dataset checks."
+        ),
+        "blockers": ["input_file_blocked"],
+        "steps": [
+            {
+                "order": 1,
+                "title": "Fix upload input",
+                "status": "required",
+                "description": (
+                    "Resolve critical upload input issues before running CRS, "
+                    "bounds, relationship, task, or preparation checks."
+                ),
+                "expected_result": (
+                    "All uploaded files can be inspected and can continue to "
+                    "dataset-level checks."
+                ),
+                "actions": recommended_actions or issues,
+            }
+        ],
+        "recommended_actions": recommended_actions,
+    }
+
+
+def _get_critical_file_blockers(files: list[dict]) -> list[dict]:
+    """
+    Return files with critical inspection or input blockers.
+    """
+
+    return [file for file in files if _has_critical_file_blocker(file)]
+
+
+def _has_critical_file_blocker(file: dict) -> bool:
+    """
+    Detect whether a file should stop downstream dataset checks.
+    """
+
+    warnings = file.get("warnings") or []
+
+    return (
+        file.get("can_continue_to_dataset") is False
+        or file.get("inspection_status") == "failed"
+        or any(warning.get("severity") == "error" for warning in warnings)
+    )
+
+
+def _get_critical_file_blocker_issues(files: list[dict]) -> list[str]:
+    """
+    Collect user-facing issues from critical file blockers.
+    """
+
+    issues: list[str] = []
+
+    for file in files:
+        issues.extend(file.get("file_issues") or [])
+
+        for warning in file.get("warnings") or []:
+            message = warning.get("message")
+
+            if warning.get("severity") == "error" and message:
+                issues.append(message)
+
+    return _deduplicate_text_items(
+        issues
+        or ["One or more uploaded files cannot continue to dataset checks."]
+    )
+
+
+def _get_critical_file_blocker_actions(files: list[dict]) -> list[str]:
+    """
+    Collect user-facing recommended actions from critical file blockers.
+    """
+
+    actions: list[str] = []
+
+    for file in files:
+        actions.extend(file.get("file_recommended_actions") or [])
+
+        for warning in file.get("warnings") or []:
+            action = warning.get("recommended_action")
+
+            if warning.get("severity") == "error" and action:
+                actions.append(action)
+
+    return _deduplicate_text_items(
+        actions or ["Fix upload input issues, then re-run GeoPrep AI checks."]
+    )
 
 
 def _count_files_by_category(files: list[dict], category: str) -> int:
