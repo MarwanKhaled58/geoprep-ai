@@ -91,6 +91,29 @@ def generate_file_warnings(file_classification: dict, gis_inspection: dict | Non
     inspection_error_code = gis_inspection.get("inspection_error_code")
 
     if inspection_status == "failed":
+        if inspection_error_code == "ZIP_INCOMPLETE_SHAPEFILE":
+            warnings.append(
+                _create_warning(
+                    code="ZIP_INCOMPLETE_SHAPEFILE",
+                    severity="error",
+                    message=gis_inspection.get("inspection_error")
+                    or (
+                        "ZIP shapefile package is incomplete and is missing "
+                        "required shapefile sidecar files."
+                    ),
+                    recommended_action=(
+                        "Upload a ZIP shapefile package that contains .shp, "
+                        ".shx, .dbf, and .prj if available."
+                    ),
+                    details={
+                        "required_sidecars": [".shx", ".dbf"],
+                        "recommended_sidecars": [".prj"],
+                        "inspection_error": gis_inspection.get("inspection_error"),
+                    },
+                )
+            )
+            return warnings
+
         if inspection_error_code == "INCOMPLETE_SHAPEFILE":
             warnings.append(
                 _create_warning(

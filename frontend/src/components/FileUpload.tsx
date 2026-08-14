@@ -1909,17 +1909,24 @@ type SelectedShapefileGroup = {
 
 const SHAPEFILE_COMPONENT_EXTENSIONS = [".shp", ".shx", ".dbf", ".prj"];
 const REQUIRED_SHAPEFILE_EXTENSIONS = [".shx", ".dbf"];
+const ZIP_EXTENSION = ".zip";
 
 function buildShapefileUploadMessages(
   selectedFiles: File[],
 ): ShapefileHelperMessage[] {
   const shapefileGroups = getSelectedShapefileGroups(selectedFiles);
+  const zipMessages = selectedFiles
+    .filter((file) => getFileExtension(file.name) === ZIP_EXTENSION)
+    .map((file) => ({
+      tone: "info" as const,
+      text: `${file.name}: ZIP shapefile package detected. Make sure it contains .shp, .shx, .dbf, and .prj if available.`,
+    }));
 
   if (shapefileGroups.length === 0) {
-    return [];
+    return zipMessages;
   }
 
-  return shapefileGroups.map((group) => {
+  const shapefileMessages: ShapefileHelperMessage[] = shapefileGroups.map((group) => {
     if (!group.hasMainFile) {
       return {
         tone: "warning",
@@ -1957,6 +1964,8 @@ function buildShapefileUploadMessages(
       }.`,
     };
   });
+
+  return [...zipMessages, ...shapefileMessages];
 }
 
 function getSelectedShapefileGroups(
