@@ -456,6 +456,33 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.export-package-checklist {
+  margin-top: 14px;
+}
+
+.export-package-checklist h5 {
+  margin: 0 0 8px;
+}
+
+.export-package-checklist .clean-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+}
+
+.export-package-checklist li {
+  margin: 0;
+}
+
+.export-package-action-button {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .report-timeline-panel {
   margin-top: 20px;
   padding: 16px;

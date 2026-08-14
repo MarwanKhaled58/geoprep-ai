@@ -339,6 +339,7 @@ function FileUpload() {
 
   function handleViewFirstAction(): void {
     if (!firstActionableStepTitle) {
+      handleViewPreparationPlan();
       return;
     }
 
@@ -355,6 +356,52 @@ function FileUpload() {
         block: "start",
       });
     });
+  }
+
+  function handleViewPreparationPlan(): void {
+    expandSection(REPORT_SECTION_KEYS.PREPARATION_PLAN);
+    window.requestAnimationFrame(() => {
+      preparationPlanRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleViewExportStep(): void {
+    expandSection(REPORT_SECTION_KEYS.PREPARATION_PLAN);
+    window.requestAnimationFrame(() => {
+      const exportStepTitle = getExportPackageStepTitle(
+        preparationPlanSummary?.steps,
+      );
+      const exportStepRef = exportStepTitle
+        ? preparationStepRefs.current[normalizeStepTitle(exportStepTitle)]
+        : null;
+      const scrollTarget = exportStepRef ?? preparationPlanRef.current;
+
+      scrollTarget?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
+
+  function handleViewExportPackageAction(): void {
+    if (!exportPackageReadiness) {
+      return;
+    }
+
+    if (exportPackageReadiness.status === "blocked") {
+      handleViewFirstAction();
+      return;
+    }
+
+    if (exportPackageReadiness.status === "ready") {
+      handleViewExportStep();
+      return;
+    }
+
+    handleViewPreparationPlan();
   }
 
   function handleReportSearchResultClick(match: ReportSearchMatch): void {
@@ -788,6 +835,7 @@ function FileUpload() {
 
           {exportPackageReadiness && (
             <ExportPackageReadinessPanel
+              onAction={handleViewExportPackageAction}
               readiness={exportPackageReadiness}
             />
           )}
@@ -1841,11 +1889,15 @@ type ExportPackageReadiness = {
   statusLabel: string;
   reason: string;
   nextAction: string;
+  actionLabel: string;
+  checklist: string[];
 };
 
 function ExportPackageReadinessPanel({
+  onAction,
   readiness,
 }: {
+  onAction: () => void;
   readiness: ExportPackageReadiness;
 }) {
   return (
@@ -1869,6 +1921,24 @@ function ExportPackageReadinessPanel({
         <InfoItem label="Reason" value={readiness.reason} />
         <InfoItem label="Next action" value={readiness.nextAction} />
       </div>
+
+      <div className="export-package-checklist">
+        <h5>Export Package Checklist</h5>
+
+        <ul className="clean-list">
+          {readiness.checklist.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <button
+        className="secondary-button export-package-action-button"
+        onClick={onAction}
+        type="button"
+      >
+        {readiness.actionLabel}
+      </button>
     </div>
   );
 }
@@ -2142,6 +2212,8 @@ function buildExportPackageReadiness(
       nextAction:
         nextAction ??
         "Fix upload input issues, then upload the corrected dataset again.",
+      actionLabel: "View blocking action",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
     };
   }
 
@@ -2153,6 +2225,25 @@ function buildExportPackageReadiness(
         "CRS issues must be resolved before export/package steps are trusted.",
       nextAction:
         nextAction ?? "Reproject or confirm CRS, then re-upload corrected files.",
+      actionLabel: "View blocking action",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
+    };
+  }
+
+  if (
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(
+      datasetReadinessSummary.crs_summary?.status ?? "",
+    )
+  ) {
+    return {
+      status: "blocked",
+      statusLabel: "Blocked",
+      reason:
+        "CRS issues must be resolved before export/package steps are trusted.",
+      nextAction:
+        nextAction ?? "Reproject or confirm CRS, then re-upload corrected files.",
+      actionLabel: "View blocking action",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
     };
   }
 
@@ -2164,6 +2255,8 @@ function buildExportPackageReadiness(
         "Preparation plan blockers must be resolved before export/package steps.",
       nextAction:
         nextAction ?? planBlockers[0] ?? "Resolve preparation blockers first.",
+      actionLabel: "View blocking action",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
     };
   }
 
@@ -2181,6 +2274,8 @@ function buildExportPackageReadiness(
       nextAction:
         nextAction ??
         "Continue with the ready export/package step in the preparation plan.",
+      actionLabel: "View export step",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
     };
   }
 
@@ -2191,6 +2286,8 @@ function buildExportPackageReadiness(
     nextAction:
       nextAction ??
       "Review the preparation plan and complete the first actionable step.",
+    actionLabel: "View preparation plan",
+    checklist: buildExportPackageChecklist(datasetReadinessSummary),
   };
 }
 
@@ -2207,6 +2304,8 @@ function buildSingleWorkflowExportReadiness(
       nextAction:
         nextAction ??
         "Continue with raster tiling, statistics, and imagery-only preparation.",
+      actionLabel: "View preparation plan",
+      checklist: buildExportPackageChecklist(datasetReadinessSummary),
     };
   }
 
@@ -2218,7 +2317,61 @@ function buildSingleWorkflowExportReadiness(
     nextAction:
       nextAction ??
       "Continue with vector cleanup, attributes, and task-specific preparation.",
+    actionLabel: "View preparation plan",
+    checklist: buildExportPackageChecklist(datasetReadinessSummary),
   };
+}
+
+function buildExportPackageChecklist(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): string[] {
+  if (datasetReadinessSummary.status === "blocked_input") {
+    return [
+      "Fix upload input issues",
+      "Re-run dataset checks",
+      "Export corrected files",
+      "Include metadata and readiness report",
+    ];
+  }
+
+  if (
+    datasetReadinessSummary.status === "needs_crs_review" ||
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(
+      datasetReadinessSummary.crs_summary?.status ?? "",
+    )
+  ) {
+    return [
+      "Resolve CRS issues",
+      "Re-upload corrected files",
+      "Confirm bounds/relationship checks",
+      "Include metadata and readiness report",
+    ];
+  }
+
+  if (datasetReadinessSummary.status === "raster_only") {
+    return [
+      "Export raster imagery",
+      "Include CRS metadata",
+      "Include raster statistics / nodata review",
+      "Add vector labels if supervised training is required",
+    ];
+  }
+
+  if (datasetReadinessSummary.status === "vector_only") {
+    return [
+      "Export vector layers",
+      "Include CRS metadata",
+      "Add raster imagery if image-based GeoAI training is required",
+      "Include readiness report",
+    ];
+  }
+
+  return [
+    "Export corrected raster/vector files",
+    "Include CRS metadata",
+    "Include preparation report and warnings",
+    "Package for selected GeoAI workflow",
+  ];
 }
 
 function getFirstRecommendedAction(
@@ -2528,6 +2681,34 @@ function hasReadyExportStep(
         searchableStepText.includes("package"))
     );
   });
+}
+
+function getExportPackageStepTitle(
+  steps:
+    | NonNullable<
+        DatasetReadinessSummary["preparation_plan_summary"]
+      >["steps"]
+    | undefined,
+): string | null {
+  if (!steps || steps.length === 0) {
+    return null;
+  }
+
+  const exportStep = steps.find((step) => {
+    const searchableStepText = normalizeSearchText([
+      step.title,
+      step.description,
+      step.expected_result,
+      step.actions,
+    ]);
+
+    return (
+      searchableStepText.includes("export") ||
+      searchableStepText.includes("package")
+    );
+  });
+
+  return exportStep?.title ?? null;
 }
 
 type ReportSearchTarget = "datasetReadiness" | "warningSummary";
