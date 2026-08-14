@@ -1888,8 +1888,19 @@ function FileUpload() {
               onSelectFilter={handleSelectFileFilter}
             />
 
+            {selectedFileFilter === FILE_FILTER_KEYS.WARNINGS &&
+              filteredUploadResults.length > 0 && (
+                <p className="warning-filter-helper">
+                  Showing only files with warnings.
+                </p>
+              )}
+
             {filteredUploadResults.length === 0 ? (
-              <p className="empty-filter-message">No files match this filter.</p>
+              <p className="empty-filter-message">
+                {selectedFileFilter === FILE_FILTER_KEYS.WARNINGS
+                  ? "No files with warnings."
+                  : "No files match this filter."}
+              </p>
             ) : (
               <div className="file-results-table-wrapper">
                 <table className="file-results-table">
@@ -3256,14 +3267,54 @@ function buildReportSearchIndex({
     {
       name: "Uploaded Files Overview / File-Level Analysis",
       sectionKey: REPORT_SECTION_KEYS.FILE_RESULTS,
-      text: normalizeSearchText([datasetSession.files, allUploadResults]),
+      text: normalizeSearchText([
+        datasetSession.files,
+        allUploadResults,
+        buildWarningSearchTerms(allUploadResults, warningSummary),
+      ]),
     },
     {
       name: "Warning Summary",
       target: "warningSummary",
-      text: normalizeSearchText([warningSummary, allUploadResults]),
+      text: normalizeSearchText([
+        warningSummary,
+        allUploadResults,
+        buildWarningSearchTerms(allUploadResults, warningSummary),
+      ]),
     },
   ];
+}
+
+function buildWarningSearchTerms(
+  uploadResults: UploadResponse[],
+  warningSummary: WarningSummary,
+): string[] {
+  const warningTerms = uploadResults.flatMap((result) =>
+    (result.warnings ?? []).flatMap((warning) => [
+      getWarningSummaryFilename(result),
+      warning.code,
+      warning.severity,
+      getWarningImpactCategory(warning.severity || "unknown"),
+      warning.message,
+      warning.recommended_action,
+    ]),
+  );
+
+  return [
+    "Blocking",
+    "Review",
+    "Informational",
+    warningSummary.impactMessage,
+    warningSummary.warningActions.map((action) => [
+      action.code,
+      action.category,
+      action.recommendedAction,
+    ]),
+    warningSummary.affectedFiles.map((file) => file.filename),
+    warningTerms,
+  ]
+    .flat(3)
+    .filter((term): term is string => typeof term === "string");
 }
 
 function getReportSearchMatches(
