@@ -59,6 +59,7 @@ function FileUpload() {
   const datasetSummaryRef = useRef<HTMLDivElement | null>(null);
   const reportSearchRef = useRef<HTMLDivElement | null>(null);
   const reportPreviewRef = useRef<HTMLDivElement | null>(null);
+  const exportPackageReadinessRef = useRef<HTMLDivElement | null>(null);
   const warningSummaryRef = useRef<HTMLDivElement | null>(null);
   const fileOverviewRef = useRef<HTMLDivElement | null>(null);
   const crsCorrectionRef = useRef<HTMLDivElement | null>(null);
@@ -508,6 +509,7 @@ function FileUpload() {
     { label: "Summary", targetRef: datasetSummaryRef },
     { label: "Search", targetRef: reportSearchRef },
     { label: "Preview", targetRef: reportPreviewRef },
+    { label: "Export Package", targetRef: exportPackageReadinessRef },
     { label: "Warnings", targetRef: warningSummaryRef },
     {
       label: "Corrected Validation",
@@ -836,6 +838,7 @@ function FileUpload() {
           {exportPackageReadiness && (
             <ExportPackageReadinessPanel
               onAction={handleViewExportPackageAction}
+              panelRef={exportPackageReadinessRef}
               readiness={exportPackageReadiness}
             />
           )}
@@ -1895,13 +1898,15 @@ type ExportPackageReadiness = {
 
 function ExportPackageReadinessPanel({
   onAction,
+  panelRef,
   readiness,
 }: {
   onAction: () => void;
+  panelRef: Ref<HTMLDivElement>;
   readiness: ExportPackageReadiness;
 }) {
   return (
-    <div className="export-package-readiness-panel">
+    <div className="export-package-readiness-panel" ref={panelRef}>
       <div className="card-header-row">
         <div>
           <h4>Export Package Readiness</h4>
@@ -1925,9 +1930,12 @@ function ExportPackageReadinessPanel({
       <div className="export-package-checklist">
         <h5>Export Package Checklist</h5>
 
-        <ul className="clean-list">
+        <ul className="export-package-checklist-list">
           {readiness.checklist.map((item) => (
-            <li key={item}>{item}</li>
+            <li key={item}>
+              <span className="export-package-check-marker" aria-hidden="true" />
+              <span>{item}</span>
+            </li>
           ))}
         </ul>
       </div>

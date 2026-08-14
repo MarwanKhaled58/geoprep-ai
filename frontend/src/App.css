@@ -464,14 +464,44 @@
   margin: 0 0 8px;
 }
 
-.export-package-checklist .clean-list {
+.export-package-checklist-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
-.export-package-checklist li {
+.export-package-checklist-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.export-package-check-marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  background: #dcfce7;
+}
+
+.export-package-check-marker::after {
+  content: "";
+  width: 6px;
+  height: 3px;
+  margin: 4px auto 0;
+  border-bottom: 2px solid #166534;
+  border-left: 2px solid #166534;
+  transform: rotate(-45deg);
 }
 
 .export-package-action-button {
