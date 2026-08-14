@@ -88,7 +88,8 @@
 }
 
 .workflow-panel,
-.test-scenarios-panel {
+.test-scenarios-panel,
+.final-test-checklist-panel {
   padding: 14px;
   border: 1px solid #dbe7fb;
   border-radius: 16px;
@@ -96,15 +97,21 @@
 }
 
 .workflow-panel h3,
-.test-scenarios-panel summary {
+.test-scenarios-panel summary,
+.final-test-checklist-panel summary {
   margin: 0;
   color: #0f172a;
   font-size: 15px;
   font-weight: 800;
 }
 
-.test-scenarios-panel summary {
+.test-scenarios-panel summary,
+.final-test-checklist-panel summary {
   cursor: pointer;
+}
+
+.final-test-checklist-panel {
+  grid-column: 1 / -1;
 }
 
 .workflow-steps,
@@ -180,6 +187,37 @@
   font-size: 11px;
   font-weight: 900;
   line-height: 1.25;
+}
+
+.final-test-checklist-content {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.final-test-checklist-content p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.final-test-checklist {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mvp-test-guide-copy-button {
+  justify-self: start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .secondary-button {

@@ -54,6 +54,19 @@ const COLLAPSIBLE_REPORT_SECTION_KEYS: ReportSectionKey[] = [
   REPORT_SECTION_KEYS.FILE_RESULTS,
 ];
 
+const MVP_TEST_CHECKLIST_ITEMS = [
+  "Open app and confirm workflow guidance appears.",
+  "Upload raster-only file and confirm raster-only readiness report.",
+  "Upload incomplete shapefile and confirm blocked-input report.",
+  "Upload raster + vector files and confirm CRS/bounds/raster-vector checks.",
+  "Use Warning Summary, Warning Impact, and View warning files.",
+  "Use Report Navigation and Search report.",
+  "Export JSON report.",
+  "Export Markdown report.",
+  "Copy Report Summary.",
+  "Review Export Package Readiness and Package Preview.",
+];
+
 function FileUpload() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const datasetSummaryRef = useRef<HTMLDivElement | null>(null);
@@ -77,6 +90,8 @@ function FileUpload() {
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [datasetSessionId, setDatasetSessionId] = useState<string | undefined>();
   const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
+  const [isMvpTestGuideCopied, setIsMvpTestGuideCopied] =
+    useState<boolean>(false);
   const [selectedFileFilter, setSelectedFileFilter] =
     useState<FileFilter>(FILE_FILTER_KEYS.ALL);
   const [collapsedSections, setCollapsedSections] = useState<
@@ -251,6 +266,23 @@ function FileUpload() {
     } catch {
       setIsSummaryCopied(false);
       setError("Could not copy report summary to clipboard.");
+    }
+  }
+
+  async function handleCopyMvpTestGuide(): Promise<void> {
+    if (!navigator.clipboard?.writeText) {
+      setError("Clipboard copy is not available in this browser.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(buildMvpTestGuideText());
+      setError("");
+      setIsMvpTestGuideCopied(true);
+      window.setTimeout(() => setIsMvpTestGuideCopied(false), 1800);
+    } catch {
+      setIsMvpTestGuideCopied(false);
+      setError("Could not copy MVP test guide to clipboard.");
     }
   }
 
@@ -650,6 +682,31 @@ function FileUpload() {
                 </span>
               </li>
             </ul>
+          </details>
+
+          <details className="final-test-checklist-panel">
+            <summary>Final MVP Test Checklist</summary>
+
+            <div className="final-test-checklist-content">
+              <p>
+                Use this short guide to validate the main MVP flows before
+                handoff.
+              </p>
+
+              <ol className="final-test-checklist">
+                {MVP_TEST_CHECKLIST_ITEMS.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+
+              <button
+                type="button"
+                className="secondary-button mvp-test-guide-copy-button"
+                onClick={handleCopyMvpTestGuide}
+              >
+                {isMvpTestGuideCopied ? "Copied!" : "Copy MVP Test Guide"}
+              </button>
+            </div>
           </details>
         </div>
 
@@ -2542,6 +2599,14 @@ function buildUploadPrecheckSummary(
     supporting_or_other_count: selectedFilesSummary.supportingOther,
     selected_filenames: selectedFiles.map((file) => file.name),
   };
+}
+
+function buildMvpTestGuideText(): string {
+  return [
+    "GeoPrep AI MVP Test Checklist",
+    "",
+    ...MVP_TEST_CHECKLIST_ITEMS.map((item, index) => `${index + 1}. ${item}`),
+  ].join("\n");
 }
 
 function getAnalyzeGuidanceText(
