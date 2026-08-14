@@ -167,6 +167,7 @@ function FileUpload() {
         readiness_score: result.readiness_report?.readiness_score ?? null,
         warnings: result.warnings ?? [],
         important_metadata: getImportantMetadata(result),
+        ...getUploadSourceMetadata(result),
       })),
     };
 
@@ -221,6 +222,7 @@ function FileUpload() {
         datasetSession,
         datasetReadinessSummary,
         reportQualityBadge,
+        allUploadResults,
       });
 
       await navigator.clipboard.writeText(summary);
@@ -2873,12 +2875,14 @@ type PlainTextReportSummaryInput = {
   datasetSession: DatasetSession;
   datasetReadinessSummary: DatasetReadinessSummary;
   reportQualityBadge: ReportQualityBadge | null;
+  allUploadResults: UploadResponse[];
 };
 
 function buildPlainTextReportSummary({
   datasetSession,
   datasetReadinessSummary,
   reportQualityBadge,
+  allUploadResults,
 }: PlainTextReportSummaryInput): string {
   return [
     "GeoPrep AI Dataset Summary",
@@ -2889,6 +2893,7 @@ function buildPlainTextReportSummary({
     `Reason: ${formatPlainTextValue(reportQualityBadge?.reason)}`,
     `Readiness: ${formatPlainTextValue(datasetReadinessSummary.readiness_score)}/100`,
     `Composition: ${formatReportPreviewComposition(datasetReadinessSummary)}`,
+    `Source types: ${formatSourceTypeSummary(allUploadResults)}`,
     `Recommended task: ${formatReportPreviewTask(
       datasetReadinessSummary.task_recommendation_summary,
     )}`,
@@ -3093,46 +3098,89 @@ function getImportantMetadata(
   return items;
 }
 
-function getSourceMetadataItems(
+type UploadSourceMetadata = {
+  source_upload_type: string;
+  original_uploaded_filename: string;
+  logical_dataset_filename: string;
+  source_package_name?: string;
+  shapefile_sidecars?: unknown[];
+};
+
+type SourceTypeCounts = {
+  direct_upload: number;
+  shapefile_sidecar_group: number;
+  zip_shapefile_package: number;
+};
+
+function getUploadSourceMetadata(result: UploadResponse): UploadSourceMetadata {
+  const metadata = result.gis_metadata?.metadata as Record<string, unknown> | null;
+
+  return buildUploadSourceMetadata(metadata, result.original_filename);
+}
+
+function buildUploadSourceMetadata(
   metadata: Record<string, unknown> | null,
   fallbackFilename: string,
-): Array<{ label: string; value: string }> {
+): UploadSourceMetadata {
   const sourceUploadType =
     typeof metadata?.source_upload_type === "string"
       ? metadata.source_upload_type
       : "direct_upload";
+  const originalUploadedFilename =
+    typeof metadata?.original_uploaded_filename === "string"
+      ? metadata.original_uploaded_filename
+      : fallbackFilename;
+  const logicalDatasetFilename =
+    typeof metadata?.logical_dataset_filename === "string"
+      ? metadata.logical_dataset_filename
+      : fallbackFilename;
+  const sourceMetadata: UploadSourceMetadata = {
+    source_upload_type: sourceUploadType,
+    original_uploaded_filename: originalUploadedFilename,
+    logical_dataset_filename: logicalDatasetFilename,
+  };
+
+  if (typeof metadata?.source_package_name === "string") {
+    sourceMetadata.source_package_name = metadata.source_package_name;
+  }
+
+  if (Array.isArray(metadata?.shapefile_sidecars)) {
+    sourceMetadata.shapefile_sidecars = metadata.shapefile_sidecars;
+  }
+
+  return sourceMetadata;
+}
+
+function getSourceMetadataItems(
+  metadata: Record<string, unknown> | null,
+  fallbackFilename: string,
+): Array<{ label: string; value: string }> {
+  const sourceMetadata = buildUploadSourceMetadata(metadata, fallbackFilename);
+  const sourceUploadType = sourceMetadata.source_upload_type;
   const items: Array<{ label: string; value: string }> = [
     {
       label: "Source upload type",
       value: formatSourceUploadType(sourceUploadType),
     },
   ];
-  const sourcePackageName =
-    typeof metadata?.source_package_name === "string"
-      ? metadata.source_package_name
-      : null;
-  const logicalDatasetFilename =
-    typeof metadata?.logical_dataset_filename === "string"
-      ? metadata.logical_dataset_filename
-      : fallbackFilename;
 
-  if (sourcePackageName) {
+  if (sourceMetadata.source_package_name) {
     items.push({
       label: "Source package",
-      value: sourcePackageName,
+      value: sourceMetadata.source_package_name,
     });
   }
 
   if (sourceUploadType !== "direct_upload") {
     items.push({
       label: "Logical GIS file",
-      value: logicalDatasetFilename,
+      value: sourceMetadata.logical_dataset_filename,
     });
   }
 
   const includedShapefileFiles = formatIncludedShapefileFiles(
-    logicalDatasetFilename,
-    metadata?.shapefile_sidecars,
+    sourceMetadata.logical_dataset_filename,
+    sourceMetadata.shapefile_sidecars,
   );
 
   if (includedShapefileFiles) {
@@ -3155,6 +3203,42 @@ function formatSourceUploadType(sourceUploadType: string): string {
   }
 
   return "Direct upload";
+}
+
+function getSourceTypeCounts(uploadResults: UploadResponse[]): SourceTypeCounts {
+  return uploadResults.reduce<SourceTypeCounts>(
+    (counts, result) => {
+      const sourceUploadType = getUploadSourceMetadata(result).source_upload_type;
+
+      if (sourceUploadType === "zip_shapefile_package") {
+        counts.zip_shapefile_package += 1;
+        return counts;
+      }
+
+      if (sourceUploadType === "shapefile_sidecar_group") {
+        counts.shapefile_sidecar_group += 1;
+        return counts;
+      }
+
+      counts.direct_upload += 1;
+      return counts;
+    },
+    {
+      direct_upload: 0,
+      shapefile_sidecar_group: 0,
+      zip_shapefile_package: 0,
+    },
+  );
+}
+
+function formatSourceTypeSummary(uploadResults: UploadResponse[]): string {
+  const counts = getSourceTypeCounts(uploadResults);
+
+  return [
+    `Direct uploads: ${counts.direct_upload}`,
+    `Shapefile groups: ${counts.shapefile_sidecar_group}`,
+    `ZIP packages: ${counts.zip_shapefile_package}`,
+  ].join(", ");
 }
 
 function formatIncludedShapefileFiles(
