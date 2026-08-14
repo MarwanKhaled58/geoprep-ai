@@ -577,13 +577,20 @@ function FileUpload() {
             <h3>GeoPrep AI Workflow</h3>
 
             <ol className="workflow-steps">
-              <li>Upload files</li>
-              <li>Inspect metadata</li>
-              <li>Review CRS and bounds</li>
-              <li>Detect raster-vector relationship</li>
-              <li>Recommend GeoAI task</li>
-              <li>Generate preparation plan</li>
-              <li>Review export/package readiness</li>
+              {[
+                "Upload files",
+                "Inspect metadata",
+                "Review CRS and bounds",
+                "Detect raster-vector relationship",
+                "Recommend GeoAI task",
+                "Generate preparation plan",
+                "Review export/package readiness",
+              ].map((step, index) => (
+                <li key={step}>
+                  <span className="workflow-step-number">{index + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
             </ol>
           </div>
 
@@ -591,20 +598,42 @@ function FileUpload() {
             <summary>MVP Test Scenarios</summary>
 
             <ul className="test-scenario-list">
-              <li>Upload a raster only file to test imagery-only readiness.</li>
               <li>
-                Upload raster + vector files to test CRS and raster-vector
-                relationship checks.
+                <span className="scenario-tag">Raster</span>
+                <span>
+                  Upload a raster only file to test imagery-only readiness.
+                  <strong> Expected: Raster-only workflow / needs review.</strong>
+                </span>
               </li>
               <li>
-                Upload an incomplete shapefile to test blocked input handling.
+                <span className="scenario-tag">CRS</span>
+                <span>
+                  Upload raster + vector files to test CRS and raster-vector
+                  relationship checks.
+                  <strong> Expected: CRS, bounds, and raster-vector checks.</strong>
+                </span>
               </li>
               <li>
-                Upload a complete shapefile set or ZIP package to test shapefile
-                package support.
+                <span className="scenario-tag">Blocked</span>
+                <span>
+                  Upload an incomplete shapefile to test blocked input handling.
+                  <strong> Expected: Blocked by upload input.</strong>
+                </span>
               </li>
               <li>
-                Export JSON/Markdown reports to verify handoff outputs.
+                <span className="scenario-tag">ZIP</span>
+                <span>
+                  Upload a complete shapefile set or ZIP package to test
+                  shapefile package support.
+                  <strong> Expected: Shapefile package support.</strong>
+                </span>
+              </li>
+              <li>
+                <span className="scenario-tag">Export</span>
+                <span>
+                  Export JSON/Markdown reports to verify handoff outputs.
+                  <strong> Expected: JSON/Markdown handoff outputs.</strong>
+                </span>
               </li>
             </ul>
           </details>
