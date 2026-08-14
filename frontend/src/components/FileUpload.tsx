@@ -954,6 +954,49 @@ function FileUpload() {
                     />
                   </div>
 
+                  <div className="warning-impact-panel">
+                    <h5>Warning Impact</h5>
+
+                    <div className="info-grid compact-grid warning-impact-grid">
+                      <InfoItem
+                        label="Blocking warnings"
+                        value={String(warningSummary.blockingWarnings)}
+                      />
+                      <InfoItem
+                        label="Review warnings"
+                        value={String(warningSummary.reviewWarnings)}
+                      />
+                      <InfoItem
+                        label="Informational warnings"
+                        value={String(warningSummary.informationalWarnings)}
+                      />
+                    </div>
+
+                    <p>{warningSummary.impactMessage}</p>
+                  </div>
+
+                  {warningSummary.warningActions.length > 0 && (
+                    <div className="warning-actions-panel">
+                      <h5>Warning Actions</h5>
+
+                      <ul className="clean-list warning-actions-list">
+                        {warningSummary.warningActions.map((action) => (
+                          <li
+                            key={`${action.code}-${action.recommendedAction}`}
+                          >
+                            <strong>{action.code}</strong>
+                            <span>
+                              {action.recommendedAction}
+                              {action.affectedFileCount > 0
+                                ? ` (${action.affectedFileCount} affected file(s))`
+                                : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <button
                     className="secondary-button warning-summary-action"
                     onClick={handleViewWarningFiles}
@@ -3364,9 +3407,20 @@ type WarningSummaryFile = {
   count: number;
 };
 
+type WarningActionSummary = {
+  code: string;
+  recommendedAction: string;
+  affectedFileCount: number;
+};
+
 type WarningSummary = {
   totalWarnings: number;
   filesWithWarnings: number;
+  blockingWarnings: number;
+  reviewWarnings: number;
+  informationalWarnings: number;
+  impactMessage: string;
+  warningActions: WarningActionSummary[];
   severityCounts: WarningSummaryCount[];
   codeCounts: WarningSummaryCount[];
   affectedFiles: WarningSummaryFile[];
@@ -3375,15 +3429,21 @@ type WarningSummary = {
 function buildWarningSummary(results: UploadResponse[]): WarningSummary {
   const severityCounts = new Map<string, number>();
   const codeCounts = new Map<string, number>();
+  const warningActionCounts = new Map<string, WarningActionSummary>();
+  const warningActionFiles = new Map<string, Set<string>>();
   const affectedFiles: WarningSummaryFile[] = [];
   let totalWarnings = 0;
+  let blockingWarnings = 0;
+  let reviewWarnings = 0;
+  let informationalWarnings = 0;
 
   results.forEach((result) => {
     const warnings = result.warnings ?? [];
+    const filename = getWarningSummaryFilename(result);
 
     if (warnings.length > 0) {
       affectedFiles.push({
-        filename: getWarningSummaryFilename(result),
+        filename,
         count: warnings.length,
       });
     }
@@ -3391,20 +3451,65 @@ function buildWarningSummary(results: UploadResponse[]): WarningSummary {
     warnings.forEach((warning) => {
       const severity = warning.severity || "unknown";
       const code = warning.code || "UNKNOWN_WARNING";
+      const recommendedAction =
+        warning.recommended_action || "Review this warning before continuing.";
+      const warningActionKey = `${code}::${recommendedAction}`;
 
       totalWarnings += 1;
+      if (severity === "error") {
+        blockingWarnings += 1;
+      } else if (severity === "warning") {
+        reviewWarnings += 1;
+      } else {
+        informationalWarnings += 1;
+      }
+
       severityCounts.set(severity, (severityCounts.get(severity) ?? 0) + 1);
       codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1);
+
+      if (!warningActionFiles.has(warningActionKey)) {
+        warningActionFiles.set(warningActionKey, new Set<string>());
+      }
+
+      warningActionFiles.get(warningActionKey)?.add(filename);
+      warningActionCounts.set(warningActionKey, {
+        code,
+        recommendedAction,
+        affectedFileCount: warningActionFiles.get(warningActionKey)?.size ?? 1,
+      });
     });
   });
 
   return {
     totalWarnings,
     filesWithWarnings: affectedFiles.length,
+    blockingWarnings,
+    reviewWarnings,
+    informationalWarnings,
+    impactMessage: buildWarningImpactMessage(
+      blockingWarnings,
+      Array.from(codeCounts.keys()),
+    ),
+    warningActions: Array.from(warningActionCounts.values()),
     severityCounts: mapCountsToList(severityCounts),
     codeCounts: mapCountsToList(codeCounts),
     affectedFiles,
   };
+}
+
+function buildWarningImpactMessage(
+  blockingWarnings: number,
+  warningCodes: string[],
+): string {
+  if (blockingWarnings > 0) {
+    if (warningCodes.includes("INCOMPLETE_SHAPEFILE")) {
+      return "Upload input is blocked until required shapefile sidecars are provided.";
+    }
+
+    return "Upload input is blocked until required file issues are fixed.";
+  }
+
+  return "Warnings do not block preparation, but should be reviewed before model training.";
 }
 
 function getWarningSummaryFilename(result: UploadResponse): string {
