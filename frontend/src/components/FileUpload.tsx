@@ -1894,6 +1894,17 @@ type ExportPackageReadiness = {
   nextAction: string;
   actionLabel: string;
   checklist: string[];
+  preview: ExportPackagePreview;
+  packageButtonLabel: string;
+  packageHelperText: string;
+};
+
+type ExportPackagePreview = {
+  packageStatus: string;
+  includedTitle: string;
+  includedItems: string[];
+  optionalTitle?: string;
+  optionalItems?: string[];
 };
 
 function ExportPackageReadinessPanel({
@@ -1940,6 +1951,40 @@ function ExportPackageReadinessPanel({
         </ul>
       </div>
 
+      <div className="export-package-preview">
+        <h5>Export Package Preview</h5>
+
+        <div className="info-grid compact-grid export-package-preview-grid">
+          <InfoItem
+            label="Package status"
+            value={readiness.preview.packageStatus}
+          />
+        </div>
+
+        <div className="export-package-preview-columns">
+          <div>
+            <h6>{readiness.preview.includedTitle}</h6>
+            <ul className="export-package-preview-list">
+              {readiness.preview.includedItems.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          {readiness.preview.optionalItems &&
+            readiness.preview.optionalItems.length > 0 && (
+              <div>
+                <h6>{readiness.preview.optionalTitle ?? "Optional"}</h6>
+                <ul className="export-package-preview-list">
+                  {readiness.preview.optionalItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+        </div>
+      </div>
+
       <button
         className="secondary-button export-package-action-button"
         onClick={onAction}
@@ -1947,6 +1992,17 @@ function ExportPackageReadinessPanel({
       >
         {readiness.actionLabel}
       </button>
+
+      <div className="export-package-download-placeholder">
+        <button
+          className="secondary-button export-package-download-button"
+          disabled
+          type="button"
+        >
+          {readiness.packageButtonLabel}
+        </button>
+        <p className="small-muted">{readiness.packageHelperText}</p>
+      </div>
     </div>
   );
 }
@@ -2222,6 +2278,7 @@ function buildExportPackageReadiness(
         "Fix upload input issues, then upload the corrected dataset again.",
       actionLabel: "View blocking action",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "blocked"),
     };
   }
 
@@ -2235,6 +2292,7 @@ function buildExportPackageReadiness(
         nextAction ?? "Reproject or confirm CRS, then re-upload corrected files.",
       actionLabel: "View blocking action",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "blocked"),
     };
   }
 
@@ -2252,6 +2310,7 @@ function buildExportPackageReadiness(
         nextAction ?? "Reproject or confirm CRS, then re-upload corrected files.",
       actionLabel: "View blocking action",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "blocked"),
     };
   }
 
@@ -2265,6 +2324,7 @@ function buildExportPackageReadiness(
         nextAction ?? planBlockers[0] ?? "Resolve preparation blockers first.",
       actionLabel: "View blocking action",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "blocked"),
     };
   }
 
@@ -2284,6 +2344,7 @@ function buildExportPackageReadiness(
         "Continue with the ready export/package step in the preparation plan.",
       actionLabel: "View export step",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "ready"),
     };
   }
 
@@ -2296,6 +2357,7 @@ function buildExportPackageReadiness(
       "Review the preparation plan and complete the first actionable step.",
     actionLabel: "View preparation plan",
     checklist: buildExportPackageChecklist(datasetReadinessSummary),
+    ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "review"),
   };
 }
 
@@ -2314,6 +2376,7 @@ function buildSingleWorkflowExportReadiness(
         "Continue with raster tiling, statistics, and imagery-only preparation.",
       actionLabel: "View preparation plan",
       checklist: buildExportPackageChecklist(datasetReadinessSummary),
+      ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "review"),
     };
   }
 
@@ -2327,7 +2390,118 @@ function buildSingleWorkflowExportReadiness(
       "Continue with vector cleanup, attributes, and task-specific preparation.",
     actionLabel: "View preparation plan",
     checklist: buildExportPackageChecklist(datasetReadinessSummary),
+    ...buildExportPackagePlaceholderDetails(datasetReadinessSummary, "review"),
   };
+}
+
+function buildExportPackagePlaceholderDetails(
+  datasetReadinessSummary: DatasetReadinessSummary,
+  readinessStatus: ExportPackageReadiness["status"],
+): Pick<
+  ExportPackageReadiness,
+  "preview" | "packageButtonLabel" | "packageHelperText"
+> {
+  if (readinessStatus === "blocked") {
+    return {
+      preview: buildExportPackagePreview(datasetReadinessSummary),
+      packageButtonLabel: "Package blocked",
+      packageHelperText:
+        "Resolve blockers before generating a model-ready package.",
+    };
+  }
+
+  if (readinessStatus === "ready") {
+    return {
+      preview: buildExportPackagePreview(datasetReadinessSummary),
+      packageButtonLabel: "Download model-ready package",
+      packageHelperText: "Package generation backend is not implemented yet.",
+    };
+  }
+
+  return {
+    preview: buildExportPackagePreview(datasetReadinessSummary),
+    packageButtonLabel: "Prepare package soon",
+    packageHelperText:
+      "Package generation will be enabled after export package creation is implemented.",
+  };
+}
+
+function buildExportPackagePreview(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): ExportPackagePreview {
+  if (datasetReadinessSummary.status === "blocked_input") {
+    return {
+      packageStatus: "Not ready",
+      includedTitle: "Would include after fixes",
+      includedItems: [
+        "Corrected source files",
+        "CRS metadata",
+        "Readiness report",
+        "Warnings and recommended actions",
+      ],
+    };
+  }
+
+  if (datasetReadinessSummary.status === "raster_only") {
+    return {
+      packageStatus: "Preview available",
+      includedTitle: "Included",
+      includedItems: [
+        "Raster imagery files",
+        "CRS metadata",
+        "Raster metadata such as size/bands/nodata review",
+        "Readiness report",
+      ],
+      optionalTitle: "Optional / recommended",
+      optionalItems: ["Vector labels if supervised training is required"],
+    };
+  }
+
+  if (datasetReadinessSummary.status === "vector_only") {
+    return {
+      packageStatus: "Preview available",
+      includedTitle: "Included",
+      includedItems: [
+        "Vector files",
+        "CRS metadata",
+        "Attribute/geometry readiness notes",
+        "Readiness report",
+      ],
+      optionalTitle: "Optional / recommended",
+      optionalItems: ["Raster imagery if image-based GeoAI training is required"],
+    };
+  }
+
+  return {
+    packageStatus: isDatasetExportBlocked(datasetReadinessSummary)
+      ? "Not ready"
+      : "Ready preview",
+    includedTitle: isDatasetExportBlocked(datasetReadinessSummary)
+      ? "Would include after fixes"
+      : "Included",
+    includedItems: [
+      "Raster files",
+      "Vector label/annotation files",
+      "CRS metadata",
+      "Preparation report and warnings",
+      "Task recommendation",
+    ],
+  };
+}
+
+function isDatasetExportBlocked(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): boolean {
+  return (
+    datasetReadinessSummary.status === "blocked_input" ||
+    datasetReadinessSummary.status === "needs_crs_review" ||
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(
+      datasetReadinessSummary.crs_summary?.status ?? "",
+    ) ||
+    datasetReadinessSummary.preparation_plan_summary?.status ===
+      "plan_blocked" ||
+    (datasetReadinessSummary.preparation_plan_summary?.blockers.length ?? 0) > 0
+  );
 }
 
 function buildExportPackageChecklist(
