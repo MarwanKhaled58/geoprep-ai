@@ -543,6 +543,14 @@ function FileUpload() {
   const exportPackageReadiness = datasetReadinessSummary
     ? buildExportPackageReadiness(datasetReadinessSummary, reportTimelineSteps)
     : null;
+  const mvpReadinessSnapshot =
+    datasetReadinessSummary && exportPackageReadiness
+      ? buildMvpReadinessSnapshot(
+          datasetReadinessSummary,
+          reportQualityBadge,
+          exportPackageReadiness,
+        )
+      : null;
   const shapefileUploadMessages = buildShapefileUploadMessages(selectedFiles);
   const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
@@ -658,6 +666,44 @@ function FileUpload() {
               {datasetReadinessSummary.status}
             </span>
           </div>
+
+          <div className="report-main" ref={datasetSummaryRef}>
+            <div className="score-box large-score">
+              <span className="score-number">
+                {datasetReadinessSummary.readiness_score}
+              </span>
+              <span className="score-total">/100</span>
+            </div>
+
+            <div>
+              <p className="report-summary">
+                {datasetReadinessSummary.summary}
+              </p>
+
+              <div className="info-grid compact-grid">
+                <InfoItem
+                  label="Raster files"
+                  value={String(datasetReadinessSummary.raster_count)}
+                />
+                <InfoItem
+                  label="Vector files"
+                  value={String(datasetReadinessSummary.vector_count)}
+                />
+                <InfoItem
+                  label="Supporting files"
+                  value={String(datasetReadinessSummary.supporting_file_count)}
+                />
+                <InfoItem
+                  label="Unsupported files"
+                  value={String(datasetReadinessSummary.unsupported_file_count)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {mvpReadinessSnapshot && (
+            <MvpReadinessSnapshotPanel snapshot={mvpReadinessSnapshot} />
+          )}
 
           <div className="report-actions-panel">
             <h4>Report Actions</h4>
@@ -935,40 +981,6 @@ function FileUpload() {
               )}
             </div>
           )}
-
-          <div className="report-main" ref={datasetSummaryRef}>
-            <div className="score-box large-score">
-              <span className="score-number">
-                {datasetReadinessSummary.readiness_score}
-              </span>
-              <span className="score-total">/100</span>
-            </div>
-
-            <div>
-              <p className="report-summary">
-                {datasetReadinessSummary.summary}
-              </p>
-
-              <div className="info-grid compact-grid">
-                <InfoItem
-                  label="Raster files"
-                  value={String(datasetReadinessSummary.raster_count)}
-                />
-                <InfoItem
-                  label="Vector files"
-                  value={String(datasetReadinessSummary.vector_count)}
-                />
-                <InfoItem
-                  label="Supporting files"
-                  value={String(datasetReadinessSummary.supporting_file_count)}
-                />
-                <InfoItem
-                  label="Unsupported files"
-                  value={String(datasetReadinessSummary.unsupported_file_count)}
-                />
-              </div>
-            </div>
-          </div>
 
           {correctedValidationSummary && (
             <CollapsibleSection
@@ -1911,6 +1923,43 @@ type ExportPackagePreview = {
   optionalTitle?: string;
   optionalItems?: string[];
 };
+
+type MvpReadinessSnapshot = {
+  datasetUsability: string;
+  mainLabel: string;
+  mainMessage: string;
+  bestNextAction: string;
+  taskDirection: string;
+  exportPackageState: string;
+};
+
+function MvpReadinessSnapshotPanel({
+  snapshot,
+}: {
+  snapshot: MvpReadinessSnapshot;
+}) {
+  return (
+    <div className="mvp-readiness-snapshot">
+      <div>
+        <h4>MVP Readiness Snapshot</h4>
+        <p className="small-muted">
+          Quick read on what this dataset can do next.
+        </p>
+      </div>
+
+      <div className="info-grid compact-grid mvp-snapshot-grid">
+        <InfoItem label="Dataset usability" value={snapshot.datasetUsability} />
+        <InfoItem label={snapshot.mainLabel} value={snapshot.mainMessage} />
+        <InfoItem label="Best next action" value={snapshot.bestNextAction} />
+        <InfoItem label="GeoAI task direction" value={snapshot.taskDirection} />
+        <InfoItem
+          label="Export/package state"
+          value={snapshot.exportPackageState}
+        />
+      </div>
+    </div>
+  );
+}
 
 function ExportPackageReadinessPanel({
   onAction,
@@ -3639,6 +3688,88 @@ function buildReportQualityBadge(
     status: "needs-review",
     label: "Needs Review",
     reason: "Some preparation checks still need review.",
+  };
+}
+
+function buildMvpReadinessSnapshot(
+  datasetReadinessSummary: DatasetReadinessSummary,
+  reportQualityBadge: ReportQualityBadge | null,
+  exportPackageReadiness: ExportPackageReadiness,
+): MvpReadinessSnapshot {
+  if (datasetReadinessSummary.status === "blocked_input") {
+    return {
+      datasetUsability: "Blocked",
+      mainLabel: "Main blocker",
+      mainMessage: "Upload input issue",
+      bestNextAction:
+        datasetReadinessSummary.recommended_actions[0] ??
+        "Fix upload input issues, then upload again.",
+      taskDirection: "Fix upload input first",
+      exportPackageState: exportPackageReadiness.statusLabel,
+    };
+  }
+
+  if (
+    datasetReadinessSummary.status === "needs_crs_review" ||
+    ["mixed_crs", "missing_crs", "unresolved_crs"].includes(
+      datasetReadinessSummary.crs_summary?.status ?? "",
+    )
+  ) {
+    return {
+      datasetUsability: "Blocked",
+      mainLabel: "Main blocker",
+      mainMessage: "CRS mismatch or CRS review required",
+      bestNextAction:
+        datasetReadinessSummary.recommended_actions[0] ??
+        "Reproject or confirm CRS, then re-upload corrected files.",
+      taskDirection: "Blocked until CRS is resolved",
+      exportPackageState: exportPackageReadiness.statusLabel,
+    };
+  }
+
+  if (datasetReadinessSummary.status === "raster_only") {
+    return {
+      datasetUsability: reportQualityBadge?.label ?? "Needs Review",
+      mainLabel: "Main note",
+      mainMessage:
+        "Raster-only workflow. Add labels if supervised GeoAI training is required.",
+      bestNextAction:
+        "Continue with raster tiling, statistics, and imagery-only preparation.",
+      taskDirection: formatReportPreviewTask(
+        datasetReadinessSummary.task_recommendation_summary,
+      ),
+      exportPackageState: exportPackageReadiness.statusLabel,
+    };
+  }
+
+  if (datasetReadinessSummary.status === "vector_only") {
+    return {
+      datasetUsability: reportQualityBadge?.label ?? "Needs Review",
+      mainLabel: "Main note",
+      mainMessage:
+        "Vector-only workflow. Add raster imagery if image-based GeoAI training is required.",
+      bestNextAction:
+        "Continue with vector cleanup, attributes, and task-specific preparation.",
+      taskDirection: formatReportPreviewTask(
+        datasetReadinessSummary.task_recommendation_summary,
+      ),
+      exportPackageState: exportPackageReadiness.statusLabel,
+    };
+  }
+
+  return {
+    datasetUsability: reportQualityBadge?.label ?? "Ready for Preparation",
+    mainLabel: reportQualityBadge?.status === "ready" ? "Main note" : "Main blocker",
+    mainMessage:
+      reportQualityBadge?.reason ??
+      "Dataset checks are ready for task-specific preparation.",
+    bestNextAction:
+      datasetReadinessSummary.recommended_actions[0] ??
+      exportPackageReadiness.nextAction,
+    taskDirection: formatReportPreviewTask(
+      datasetReadinessSummary.task_recommendation_summary,
+    ),
+    exportPackageState: exportPackageReadiness.statusLabel,
   };
 }
 

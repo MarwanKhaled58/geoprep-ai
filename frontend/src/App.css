@@ -296,6 +296,24 @@
   color: #1d4ed8;
 }
 
+.mvp-readiness-snapshot {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.mvp-readiness-snapshot h4,
+.mvp-readiness-snapshot p {
+  margin: 0;
+}
+
+.mvp-snapshot-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
 .report-main {
   display: grid;
   grid-template-columns: 180px 1fr;
@@ -1284,6 +1302,10 @@
   }
 
   .report-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mvp-snapshot-grid {
     grid-template-columns: 1fr;
   }
 
