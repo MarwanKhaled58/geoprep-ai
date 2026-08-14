@@ -159,6 +159,9 @@ function FileUpload() {
       dataset_session_id: datasetSession.dataset_session_id,
       dataset_file_count: datasetSession.file_count,
       readiness_summary: datasetReadinessSummary,
+      export_package_summary: exportPackageReadiness
+        ? buildExportPackageSummary(exportPackageReadiness)
+        : null,
       uploaded_files: allUploadResults.map((result) => ({
         original_filename: result.original_filename,
         saved_filename: result.saved_filename,
@@ -199,6 +202,7 @@ function FileUpload() {
       datasetReadinessSummary,
       correctedValidationSummary,
       allUploadResults,
+      exportPackageReadiness,
     });
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -232,6 +236,7 @@ function FileUpload() {
         datasetReadinessSummary,
         reportQualityBadge,
         allUploadResults,
+        exportPackageReadiness,
       });
 
       await navigator.clipboard.writeText(summary);
@@ -2504,6 +2509,97 @@ function isDatasetExportBlocked(
   );
 }
 
+type ExportPackageSummary = {
+  status_label: string;
+  status_key: string;
+  reason: string;
+  next_action: string;
+  checklist_items: string[];
+  package_preview_status: string;
+  package_preview_included_items: string[];
+  package_preview_optional_items?: string[];
+  package_button_label: string;
+  package_button_disabled: boolean;
+  package_helper_text: string;
+};
+
+function buildExportPackageSummary(
+  readiness: ExportPackageReadiness,
+): ExportPackageSummary {
+  const summary: ExportPackageSummary = {
+    status_label: readiness.statusLabel,
+    status_key: readiness.status,
+    reason: readiness.reason,
+    next_action: readiness.nextAction,
+    checklist_items: readiness.checklist,
+    package_preview_status: readiness.preview.packageStatus,
+    package_preview_included_items: readiness.preview.includedItems,
+    package_button_label: readiness.packageButtonLabel,
+    package_button_disabled: true,
+    package_helper_text: readiness.packageHelperText,
+  };
+
+  if (
+    readiness.preview.optionalItems &&
+    readiness.preview.optionalItems.length > 0
+  ) {
+    summary.package_preview_optional_items = readiness.preview.optionalItems;
+  }
+
+  return summary;
+}
+
+function formatExportPackagePlainTextSummary(
+  readiness: ExportPackageReadiness | null,
+): string {
+  if (!readiness) {
+    return "Not available";
+  }
+
+  return `${formatPlainTextValue(readiness.statusLabel)} - ${formatPlainTextValue(
+    readiness.reason,
+  )}`;
+}
+
+function formatExportPackageReadinessMarkdown(
+  readiness: ExportPackageReadiness | null,
+): string {
+  if (!readiness) {
+    return [
+      "## Export Package Readiness",
+      "- Status: Not available",
+      "- Reason: Export package readiness is not available.",
+    ].join("\n");
+  }
+
+  const summary = buildExportPackageSummary(readiness);
+  const optionalItems = summary.package_preview_optional_items ?? [];
+
+  return [
+    "## Export Package Readiness",
+    `- Status: ${formatMarkdownValue(summary.status_label)}`,
+    `- Reason: ${formatMarkdownValue(summary.reason)}`,
+    `- Next action: ${formatMarkdownValue(summary.next_action)}`,
+    "",
+    "### Export Package Checklist",
+    formatMarkdownList(summary.checklist_items, "No export checklist items available."),
+    "",
+    "### Export Package Preview",
+    `- Package status: ${formatMarkdownValue(summary.package_preview_status)}`,
+    "- Included:",
+    formatNestedMarkdownList(
+      summary.package_preview_included_items,
+      "No package preview items available.",
+    ),
+    "- Optional / recommended:",
+    formatNestedMarkdownList(optionalItems, "No optional package items listed."),
+    "",
+    "### Package Action",
+    `- Button state: ${formatMarkdownValue(summary.package_button_label)} (${summary.package_button_disabled ? "disabled" : "enabled"})`,
+    `- Note: ${formatMarkdownValue(summary.package_helper_text)}`,
+  ].join("\n");
+}
+
 function buildExportPackageChecklist(
   datasetReadinessSummary: DatasetReadinessSummary,
 ): string[] {
@@ -3424,6 +3520,7 @@ type PlainTextReportSummaryInput = {
   datasetReadinessSummary: DatasetReadinessSummary;
   reportQualityBadge: ReportQualityBadge | null;
   allUploadResults: UploadResponse[];
+  exportPackageReadiness: ExportPackageReadiness | null;
 };
 
 function buildPlainTextReportSummary({
@@ -3431,6 +3528,7 @@ function buildPlainTextReportSummary({
   datasetReadinessSummary,
   reportQualityBadge,
   allUploadResults,
+  exportPackageReadiness,
 }: PlainTextReportSummaryInput): string {
   return [
     "GeoPrep AI Dataset Summary",
@@ -3442,6 +3540,9 @@ function buildPlainTextReportSummary({
     `Readiness: ${formatPlainTextValue(datasetReadinessSummary.readiness_score)}/100`,
     `Composition: ${formatReportPreviewComposition(datasetReadinessSummary)}`,
     `Source types: ${formatSourceTypeSummary(allUploadResults)}`,
+    `Export package: ${formatExportPackagePlainTextSummary(
+      exportPackageReadiness,
+    )}`,
     `Recommended task: ${formatReportPreviewTask(
       datasetReadinessSummary.task_recommendation_summary,
     )}`,
@@ -3835,6 +3936,7 @@ type MarkdownReportInput = {
   datasetReadinessSummary: DatasetReadinessSummary;
   correctedValidationSummary: CorrectedValidationSummary | null;
   allUploadResults: UploadResponse[];
+  exportPackageReadiness: ExportPackageReadiness | null;
 };
 
 function buildMarkdownReport({
@@ -3842,6 +3944,7 @@ function buildMarkdownReport({
   datasetReadinessSummary,
   correctedValidationSummary,
   allUploadResults,
+  exportPackageReadiness,
 }: MarkdownReportInput): string {
   const crsSummary = datasetReadinessSummary.crs_summary;
   const crsResolutionGuidanceSummary =
@@ -4106,6 +4209,11 @@ function buildMarkdownReport({
   } else {
     lines.push("No preparation plan is available.");
   }
+
+  lines.push(
+    "",
+    formatExportPackageReadinessMarkdown(exportPackageReadiness),
+  );
 
   lines.push("", "## Uploaded Files Overview");
 
