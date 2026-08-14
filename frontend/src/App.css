@@ -368,6 +368,51 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.blocked-input-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  background: #fff1f2;
+  color: #7f1d1d;
+}
+
+.blocked-input-panel h4,
+.blocked-input-panel h5,
+.blocked-input-panel p {
+  margin: 0;
+}
+
+.blocked-input-panel h4 {
+  color: #991b1b;
+}
+
+.blocked-input-panel .clean-list {
+  color: #7f1d1d;
+}
+
+.blocked-input-file-list {
+  font-weight: 800;
+}
+
+.blocked-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blocked-input-action-button {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .report-timeline-panel {
   margin-top: 20px;
   padding: 16px;

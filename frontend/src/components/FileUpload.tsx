@@ -298,6 +298,25 @@ function FileUpload() {
     }, 0);
   }
 
+  function handleViewAffectedFiles(): void {
+    const hasWarningFiles = allUploadResults.some(
+      (result) => (result.warnings?.length ?? 0) > 0,
+    );
+
+    expandSection(REPORT_SECTION_KEYS.FILE_RESULTS);
+
+    if (hasWarningFiles) {
+      handleSelectFileFilter(FILE_FILTER_KEYS.WARNINGS);
+    }
+
+    window.setTimeout(() => {
+      fileOverviewRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
   function handleViewCrsCorrectionSteps(): void {
     expandSection(REPORT_SECTION_KEYS.CRS_CORRECTION);
     window.requestAnimationFrame(() => {
@@ -458,6 +477,7 @@ function FileUpload() {
       ? buildReportTimelineSteps(datasetSession, datasetReadinessSummary)
       : [];
   const shapefileUploadMessages = buildShapefileUploadMessages(selectedFiles);
+  const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
   return (
     <section className="upload-section">
@@ -752,6 +772,15 @@ function FileUpload() {
               />
             </div>
           </div>
+
+          {datasetReadinessSummary.status === "blocked_input" && (
+            <BlockedInputPanel
+              affectedFiles={blockedInputFiles}
+              issues={datasetReadinessSummary.issues}
+              onViewAffectedFiles={handleViewAffectedFiles}
+              recommendedActions={datasetReadinessSummary.recommended_actions}
+            />
+          )}
 
           <ReportStatusTimeline steps={reportTimelineSteps} />
 
@@ -1787,6 +1816,85 @@ function CollapsibleSection({
 }
 
 type ReportTimelineStatus = "passed" | "ready" | "review" | "blocked" | "na";
+
+function BlockedInputPanel({
+  affectedFiles,
+  issues,
+  onViewAffectedFiles,
+  recommendedActions,
+}: {
+  affectedFiles: UploadResponse[];
+  issues: string[];
+  onViewAffectedFiles: () => void;
+  recommendedActions: string[];
+}) {
+  const visibleIssues = issues.slice(0, 3);
+  const visibleActions = recommendedActions.slice(0, 3);
+
+  return (
+    <div className="blocked-input-panel">
+      <div>
+        <h4>Upload Input Blocked</h4>
+        <p>One or more uploaded files cannot continue to dataset checks.</p>
+      </div>
+
+      {affectedFiles.length > 0 && (
+        <div className="blocked-input-section">
+          <h5>Affected Files</h5>
+          <ul className="clean-list blocked-input-file-list">
+            {affectedFiles.map((result) => (
+              <li key={result.saved_filename}>{result.original_filename}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {visibleIssues.length > 0 && (
+        <div className="blocked-input-section">
+          <h5>Main Issues</h5>
+          <ul className="clean-list">
+            {visibleIssues.map((issue, index) => (
+              <li key={`blocked-input-issue-${index}`}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {visibleActions.length > 0 && (
+        <div className="blocked-input-section">
+          <h5>Recommended Actions</h5>
+          <ul className="clean-list">
+            {visibleActions.map((action, index) => (
+              <li key={`blocked-input-action-${index}`}>{action}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button
+        className="secondary-button blocked-input-action-button"
+        onClick={onViewAffectedFiles}
+        type="button"
+      >
+        View affected files
+      </button>
+    </div>
+  );
+}
+
+function getBlockedInputFiles(results: UploadResponse[]): UploadResponse[] {
+  return results.filter((result) => {
+    const hasErrorWarning = (result.warnings ?? []).some(
+      (warning) => warning.severity === "error",
+    );
+
+    return (
+      result.readiness_report?.can_continue_to_dataset === false ||
+      result.gis_metadata?.inspection_status === "failed" ||
+      hasErrorWarning
+    );
+  });
+}
 
 type ShapefileHelperMessage = {
   text: string;
@@ -3456,6 +3564,30 @@ function buildCorrectedValidationSummary({
         planPassed
           ? "Preparation plan is ready."
           : "Preparation plan still needs review before export.",
+      ],
+    };
+  }
+
+  if (
+    datasetStatus === "blocked_input" ||
+    [
+      normalizedCrsStatus,
+      normalizedBoundsStatus,
+      normalizedRelationshipStatus,
+      normalizedTaskStatus,
+    ].includes("blocked_by_input")
+  ) {
+    return {
+      status: "blocked",
+      summary:
+        "Corrected re-upload validation is blocked because one or more uploaded files cannot continue to dataset checks. Fix the upload input issues, then upload again.",
+      crsStatus: normalizedCrsStatus,
+      boundsStatus: normalizedBoundsStatus,
+      relationshipStatus: normalizedRelationshipStatus,
+      taskStatus: normalizedTaskStatus,
+      checks: [
+        "Upload input validation has not passed yet.",
+        "CRS, bounds, raster-vector relationship, task, and preparation checks should not be trusted until upload input issues are fixed.",
       ],
     };
   }
