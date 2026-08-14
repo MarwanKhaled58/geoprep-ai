@@ -177,7 +177,11 @@ function FileUpload() {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `geoprep_dataset_report_${datasetSession.dataset_session_id}.json`;
+    link.download = buildReportDownloadFilename(
+      datasetSession,
+      datasetReadinessSummary,
+      "json",
+    );
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -200,7 +204,11 @@ function FileUpload() {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `geoprep_dataset_report_${datasetSession.dataset_session_id}.md`;
+    link.download = buildReportDownloadFilename(
+      datasetSession,
+      datasetReadinessSummary,
+      "md",
+    );
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -478,6 +486,9 @@ function FileUpload() {
     datasetSession && datasetReadinessSummary
       ? buildReportTimelineSteps(datasetSession, datasetReadinessSummary)
       : [];
+  const exportPackageReadiness = datasetReadinessSummary
+    ? buildExportPackageReadiness(datasetReadinessSummary, reportTimelineSteps)
+    : null;
   const shapefileUploadMessages = buildShapefileUploadMessages(selectedFiles);
   const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
@@ -774,6 +785,12 @@ function FileUpload() {
               />
             </div>
           </div>
+
+          {exportPackageReadiness && (
+            <ExportPackageReadinessPanel
+              readiness={exportPackageReadiness}
+            />
+          )}
 
           {datasetReadinessSummary.status === "blocked_input" && (
             <BlockedInputPanel
@@ -1819,6 +1836,43 @@ function CollapsibleSection({
 
 type ReportTimelineStatus = "passed" | "ready" | "review" | "blocked" | "na";
 
+type ExportPackageReadiness = {
+  status: "blocked" | "ready" | "review";
+  statusLabel: string;
+  reason: string;
+  nextAction: string;
+};
+
+function ExportPackageReadinessPanel({
+  readiness,
+}: {
+  readiness: ExportPackageReadiness;
+}) {
+  return (
+    <div className="export-package-readiness-panel">
+      <div className="card-header-row">
+        <div>
+          <h4>Export Package Readiness</h4>
+          <p className="small-muted">
+            Whether this dataset can move into model-ready package export.
+          </p>
+        </div>
+
+        <span
+          className={`export-package-status export-package-${readiness.status}`}
+        >
+          {readiness.statusLabel}
+        </span>
+      </div>
+
+      <div className="info-grid compact-grid export-package-grid">
+        <InfoItem label="Reason" value={readiness.reason} />
+        <InfoItem label="Next action" value={readiness.nextAction} />
+      </div>
+    </div>
+  );
+}
+
 function BlockedInputPanel({
   affectedFiles,
   issues,
@@ -2068,6 +2122,113 @@ function buildReportTimelineSteps(
     buildPlanTimelineStep(planSummary),
     buildExportTimelineStep(planSummary),
   ];
+}
+
+function buildExportPackageReadiness(
+  datasetReadinessSummary: DatasetReadinessSummary,
+  timelineSteps: ReportTimelineStep[],
+): ExportPackageReadiness {
+  const planSummary = datasetReadinessSummary.preparation_plan_summary;
+  const planBlockers = planSummary?.blockers ?? [];
+  const exportStep = timelineSteps.find((step) => step.label === "Export");
+  const nextAction = getFirstRecommendedAction(datasetReadinessSummary);
+
+  if (datasetReadinessSummary.status === "blocked_input") {
+    return {
+      status: "blocked",
+      statusLabel: "Blocked",
+      reason:
+        "Upload input issues must be fixed before a model-ready package can be exported.",
+      nextAction:
+        nextAction ??
+        "Fix upload input issues, then upload the corrected dataset again.",
+    };
+  }
+
+  if (datasetReadinessSummary.status === "needs_crs_review") {
+    return {
+      status: "blocked",
+      statusLabel: "Blocked",
+      reason:
+        "CRS issues must be resolved before export/package steps are trusted.",
+      nextAction:
+        nextAction ?? "Reproject or confirm CRS, then re-upload corrected files.",
+    };
+  }
+
+  if (planSummary?.status === "plan_blocked" || planBlockers.length > 0) {
+    return {
+      status: "blocked",
+      statusLabel: "Blocked",
+      reason:
+        "Preparation plan blockers must be resolved before export/package steps.",
+      nextAction:
+        nextAction ?? planBlockers[0] ?? "Resolve preparation blockers first.",
+    };
+  }
+
+  if (
+    ["raster_only", "vector_only"].includes(datasetReadinessSummary.status)
+  ) {
+    return buildSingleWorkflowExportReadiness(datasetReadinessSummary, nextAction);
+  }
+
+  if (exportStep && ["ready", "passed"].includes(exportStep.status)) {
+    return {
+      status: "ready",
+      statusLabel: "Ready",
+      reason: "Dataset checks indicate an export/package step is ready.",
+      nextAction:
+        nextAction ??
+        "Continue with the ready export/package step in the preparation plan.",
+    };
+  }
+
+  return {
+    status: "review",
+    statusLabel: "Needs review",
+    reason: "Export/package readiness still needs review before packaging.",
+    nextAction:
+      nextAction ??
+      "Review the preparation plan and complete the first actionable step.",
+  };
+}
+
+function buildSingleWorkflowExportReadiness(
+  datasetReadinessSummary: DatasetReadinessSummary,
+  nextAction: string | null,
+): ExportPackageReadiness {
+  if (datasetReadinessSummary.status === "raster_only") {
+    return {
+      status: "review",
+      statusLabel: "Ready with review",
+      reason:
+        "Dataset can be exported for imagery-only preparation, but add vector labels if supervised GeoAI training is required.",
+      nextAction:
+        nextAction ??
+        "Continue with raster tiling, statistics, and imagery-only preparation.",
+    };
+  }
+
+  return {
+    status: "review",
+    statusLabel: "Ready with review",
+    reason:
+      "Dataset can be exported for vector-only preparation, but add raster imagery if labels should be matched to imagery.",
+    nextAction:
+      nextAction ??
+      "Continue with vector cleanup, attributes, and task-specific preparation.",
+  };
+}
+
+function getFirstRecommendedAction(
+  datasetReadinessSummary: DatasetReadinessSummary,
+): string | null {
+  return (
+    datasetReadinessSummary.recommended_actions[0] ??
+    datasetReadinessSummary.preparation_plan_summary?.recommended_actions[0] ??
+    null
+  );
 }
 
 function buildUploadTimelineStep(
@@ -2804,6 +2965,30 @@ function getGisType(result: UploadResponse): string {
   return typeof gisType === "string" && gisType.length > 0
     ? gisType
     : "non-gis";
+}
+
+function buildReportDownloadFilename(
+  datasetSession: DatasetSession,
+  datasetReadinessSummary: DatasetReadinessSummary,
+  extension: "json" | "md",
+): string {
+  const sessionId = datasetSession.dataset_session_id;
+  const statusSlug = sanitizeFilenamePart(datasetReadinessSummary.status);
+  const shortSessionId = sanitizeFilenamePart(sessionId).slice(0, 8);
+
+  if (!statusSlug || !shortSessionId) {
+    return `geoprep_dataset_report_${sessionId}.${extension}`;
+  }
+
+  return `geoprep_report_${statusSlug}_${shortSessionId}.${extension}`;
+}
+
+function sanitizeFilenamePart(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function formatCodeValue(value: string): string {
