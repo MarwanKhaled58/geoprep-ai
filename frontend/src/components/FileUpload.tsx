@@ -3035,6 +3035,7 @@ function getImportantMetadata(
   const crs = result.gis_metadata?.crs as Record<string, unknown> | null;
 
   const items: Array<{ label: string; value: string }> = [
+    ...getSourceMetadataItems(metadata, result.original_filename),
     {
       label: "CRS",
       value:
@@ -3090,6 +3091,111 @@ function getImportantMetadata(
   }
 
   return items;
+}
+
+function getSourceMetadataItems(
+  metadata: Record<string, unknown> | null,
+  fallbackFilename: string,
+): Array<{ label: string; value: string }> {
+  const sourceUploadType =
+    typeof metadata?.source_upload_type === "string"
+      ? metadata.source_upload_type
+      : "direct_upload";
+  const items: Array<{ label: string; value: string }> = [
+    {
+      label: "Source upload type",
+      value: formatSourceUploadType(sourceUploadType),
+    },
+  ];
+  const sourcePackageName =
+    typeof metadata?.source_package_name === "string"
+      ? metadata.source_package_name
+      : null;
+  const logicalDatasetFilename =
+    typeof metadata?.logical_dataset_filename === "string"
+      ? metadata.logical_dataset_filename
+      : fallbackFilename;
+
+  if (sourcePackageName) {
+    items.push({
+      label: "Source package",
+      value: sourcePackageName,
+    });
+  }
+
+  if (sourceUploadType !== "direct_upload") {
+    items.push({
+      label: "Logical GIS file",
+      value: logicalDatasetFilename,
+    });
+  }
+
+  const includedShapefileFiles = formatIncludedShapefileFiles(
+    logicalDatasetFilename,
+    metadata?.shapefile_sidecars,
+  );
+
+  if (includedShapefileFiles) {
+    items.push({
+      label: "Included shapefile files",
+      value: includedShapefileFiles,
+    });
+  }
+
+  return items;
+}
+
+function formatSourceUploadType(sourceUploadType: string): string {
+  if (sourceUploadType === "zip_shapefile_package") {
+    return "ZIP shapefile package";
+  }
+
+  if (sourceUploadType === "shapefile_sidecar_group") {
+    return "Shapefile sidecar group";
+  }
+
+  return "Direct upload";
+}
+
+function formatIncludedShapefileFiles(
+  logicalDatasetFilename: string,
+  shapefileSidecars: unknown,
+): string | null {
+  if (!Array.isArray(shapefileSidecars) || shapefileSidecars.length === 0) {
+    return null;
+  }
+
+  const includedExtensions = new Set<string>();
+  const logicalExtension = getFileExtension(logicalDatasetFilename);
+
+  if (logicalExtension) {
+    includedExtensions.add(logicalExtension);
+  }
+
+  shapefileSidecars.forEach((sidecar) => {
+    if (!sidecar || typeof sidecar !== "object") {
+      return;
+    }
+
+    const sidecarRecord = sidecar as Record<string, unknown>;
+    const fileExtension = sidecarRecord.file_extension;
+    const originalFilename = sidecarRecord.original_filename;
+
+    if (typeof fileExtension === "string") {
+      includedExtensions.add(fileExtension.toLowerCase());
+      return;
+    }
+
+    if (typeof originalFilename === "string") {
+      const extension = getFileExtension(originalFilename);
+
+      if (extension) {
+        includedExtensions.add(extension);
+      }
+    }
+  });
+
+  return Array.from(includedExtensions).join(", ");
 }
 
 type MarkdownReportInput = {

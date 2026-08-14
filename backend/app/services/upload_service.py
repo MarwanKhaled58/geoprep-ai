@@ -154,6 +154,12 @@ def _save_upload_content(
         file_category=file_classification["file_category"],
         display_filename=original_filename,
     )
+    _apply_source_metadata(
+        gis_inspection=gis_inspection,
+        source_upload_type="direct_upload",
+        original_uploaded_filename=original_filename,
+        logical_dataset_filename=original_filename,
+    )
 
     warnings = generate_file_warnings(
         file_classification=file_classification,
@@ -242,8 +248,13 @@ async def _save_shapefile_group(
         file_category=file_classification["file_category"],
         display_filename=original_filename,
     )
-    metadata = gis_inspection.setdefault("metadata", {})
-    metadata["shapefile_sidecars"] = sidecar_metadata
+    _apply_source_metadata(
+        gis_inspection=gis_inspection,
+        source_upload_type="shapefile_sidecar_group",
+        original_uploaded_filename=original_filename,
+        logical_dataset_filename=original_filename,
+        shapefile_sidecars=sidecar_metadata,
+    )
 
     warnings = generate_file_warnings(
         file_classification=file_classification,
@@ -344,6 +355,7 @@ def _save_zip_upload(
 
     return _save_failed_zip_shapefile_upload(
         original_filename=display_filename,
+        source_package_name=original_filename,
         content_type=content_type,
         file_size_bytes=len(content),
         dataset_session_id=dataset_session_id,
@@ -353,6 +365,35 @@ def _save_zip_upload(
             f"{', '.join(missing_extensions)}."
         ),
     )
+
+
+def _apply_source_metadata(
+    gis_inspection: dict,
+    source_upload_type: str,
+    original_uploaded_filename: str,
+    logical_dataset_filename: str,
+    shapefile_sidecars: list[dict] | None = None,
+    source_package_name: str | None = None,
+) -> None:
+    """
+    Add upload source metadata without changing the response contract.
+    """
+
+    metadata = gis_inspection.get("metadata")
+
+    if not isinstance(metadata, dict):
+        metadata = {}
+        gis_inspection["metadata"] = metadata
+
+    metadata["source_upload_type"] = source_upload_type
+    metadata["original_uploaded_filename"] = original_uploaded_filename
+    metadata["logical_dataset_filename"] = logical_dataset_filename
+
+    if source_package_name:
+        metadata["source_package_name"] = source_package_name
+
+    if shapefile_sidecars is not None:
+        metadata["shapefile_sidecars"] = shapefile_sidecars
 
 
 def _save_zip_shapefile_group(
@@ -402,10 +443,17 @@ def _save_zip_shapefile_group(
         file_category=file_classification["file_category"],
         display_filename=original_filename,
     )
+    _apply_source_metadata(
+        gis_inspection=gis_inspection,
+        source_upload_type="zip_shapefile_package",
+        original_uploaded_filename=zip_filename,
+        logical_dataset_filename=original_filename,
+        shapefile_sidecars=sidecar_metadata,
+        source_package_name=zip_filename,
+    )
     metadata = gis_inspection.setdefault("metadata", {})
     metadata["source_zip"] = zip_filename
     metadata["source_zip_member"] = main_member["filename"]
-    metadata["shapefile_sidecars"] = sidecar_metadata
 
     warnings = generate_file_warnings(
         file_classification=file_classification,
@@ -466,6 +514,7 @@ def _save_failed_zip_shapefile_upload(
     file_size_bytes: int,
     dataset_session_id: str,
     inspection_error: str,
+    source_package_name: str | None = None,
 ) -> dict:
     """
     Return an UploadResponse-style failed vector result for ZIP shapefile packages.
@@ -480,6 +529,13 @@ def _save_failed_zip_shapefile_upload(
 
     file_classification = classify_file(saved_filename)
     gis_inspection = _build_failed_zip_shapefile_inspection(inspection_error)
+    _apply_source_metadata(
+        gis_inspection=gis_inspection,
+        source_upload_type="zip_shapefile_package",
+        original_uploaded_filename=source_package_name or original_filename,
+        logical_dataset_filename=original_filename,
+        source_package_name=source_package_name or original_filename,
+    )
 
     warnings = generate_file_warnings(
         file_classification=file_classification,
@@ -637,6 +693,7 @@ def _group_shapefile_uploads(files: list[UploadFile]) -> dict[str, list[int]]:
 
     grouped_indices: dict[str, list[int]] = {}
     groups_with_main_file: set[str] = set()
+    groups_with_sidecar_file: set[str] = set()
 
     for index, file in enumerate(files):
         filename = file.filename or ""
@@ -653,11 +710,16 @@ def _group_shapefile_uploads(files: list[UploadFile]) -> dict[str, list[int]]:
 
         if _is_shapefile_main(filename):
             groups_with_main_file.add(shapefile_base)
+        else:
+            groups_with_sidecar_file.add(shapefile_base)
 
     return {
         shapefile_base: indices
         for shapefile_base, indices in grouped_indices.items()
-        if shapefile_base in groups_with_main_file
+        if (
+            shapefile_base in groups_with_main_file
+            and shapefile_base in groups_with_sidecar_file
+        )
     }
 
 
