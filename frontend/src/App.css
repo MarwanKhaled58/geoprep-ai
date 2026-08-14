@@ -23,6 +23,48 @@
   margin-top: 22px;
 }
 
+.demo-guidance-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.workflow-panel,
+.test-scenarios-panel {
+  padding: 14px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.workflow-panel h3,
+.test-scenarios-panel summary {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.test-scenarios-panel summary {
+  cursor: pointer;
+}
+
+.workflow-steps,
+.test-scenario-list {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.workflow-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 14px;
+}
+
 .secondary-button {
   background: #ffffff;
   border: 1px solid #cbd5e1;
@@ -1401,6 +1443,11 @@
 }
 
 @media (max-width: 800px) {
+  .demo-guidance-grid,
+  .workflow-steps {
+    grid-template-columns: 1fr;
+  }
+
   .readiness-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

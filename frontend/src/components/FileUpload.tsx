@@ -572,6 +572,44 @@ function FileUpload() {
           </p>
         </div>
 
+        <div className="demo-guidance-grid">
+          <div className="workflow-panel">
+            <h3>GeoPrep AI Workflow</h3>
+
+            <ol className="workflow-steps">
+              <li>Upload files</li>
+              <li>Inspect metadata</li>
+              <li>Review CRS and bounds</li>
+              <li>Detect raster-vector relationship</li>
+              <li>Recommend GeoAI task</li>
+              <li>Generate preparation plan</li>
+              <li>Review export/package readiness</li>
+            </ol>
+          </div>
+
+          <details className="test-scenarios-panel">
+            <summary>MVP Test Scenarios</summary>
+
+            <ul className="test-scenario-list">
+              <li>Upload a raster only file to test imagery-only readiness.</li>
+              <li>
+                Upload raster + vector files to test CRS and raster-vector
+                relationship checks.
+              </li>
+              <li>
+                Upload an incomplete shapefile to test blocked input handling.
+              </li>
+              <li>
+                Upload a complete shapefile set or ZIP package to test shapefile
+                package support.
+              </li>
+              <li>
+                Export JSON/Markdown reports to verify handoff outputs.
+              </li>
+            </ul>
+          </details>
+        </div>
+
         <div className="upload-panel">
           <input
             ref={fileInputRef}
