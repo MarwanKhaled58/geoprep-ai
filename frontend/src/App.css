@@ -15,12 +15,34 @@
   text-transform: uppercase;
 }
 
+.upload-controls-panel {
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
 .upload-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  margin-top: 22px;
+}
+
+.upload-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.analyze-guidance-text {
+  margin: 10px 0 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .demo-guidance-grid {
@@ -169,6 +191,29 @@
   background: #dbeafe;
   border-color: #bfdbfe;
   color: #1d4ed8;
+}
+
+.selected-file {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid #dbe7fb;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.selected-file p {
+  margin: 0;
+  color: #334155;
+}
+
+.selected-file ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .report-card {
@@ -1510,6 +1555,12 @@
 
   .test-scenario-list li {
     grid-template-columns: 1fr;
+  }
+
+  .upload-panel,
+  .upload-action-group {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .scenario-tag {

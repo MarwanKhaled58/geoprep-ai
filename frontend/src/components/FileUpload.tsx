@@ -554,6 +554,10 @@ function FileUpload() {
         )
       : null;
   const shapefileUploadMessages = buildShapefileUploadMessages(selectedFiles);
+  const analyzeGuidanceText = getAnalyzeGuidanceText(
+    selectedFiles,
+    isUploading,
+  );
   const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
   return (
@@ -639,26 +643,32 @@ function FileUpload() {
           </details>
         </div>
 
-        <div className="upload-panel">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileChange}
-          />
+        <div className="upload-controls-panel">
+          <div className="upload-panel">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileChange}
+            />
 
-          <button onClick={handleUpload} disabled={isUploading}>
-            {isUploading ? "Analyzing..." : "Analyze Dataset"}
-          </button>
+            <div className="upload-action-group">
+              <button onClick={handleUpload} disabled={isUploading}>
+                {isUploading ? "Analyzing..." : "Analyze Dataset"}
+              </button>
 
-          <button
-            className="secondary-button"
-            onClick={handleStartNewDataset}
-            disabled={isUploading}
-            type="button"
-          >
-            Start New Dataset
-          </button>
+              <button
+                className="secondary-button"
+                onClick={handleStartNewDataset}
+                disabled={isUploading}
+                type="button"
+              >
+                Start New Dataset
+              </button>
+            </div>
+          </div>
+
+          <p className="analyze-guidance-text">{analyzeGuidanceText}</p>
         </div>
 
         {selectedFiles.length > 0 && (
@@ -2335,6 +2345,37 @@ type SelectedShapefileGroup = {
 const SHAPEFILE_COMPONENT_EXTENSIONS = [".shp", ".shx", ".dbf", ".prj"];
 const REQUIRED_SHAPEFILE_EXTENSIONS = [".shx", ".dbf"];
 const ZIP_EXTENSION = ".zip";
+
+function getAnalyzeGuidanceText(
+  selectedFiles: File[],
+  isUploading: boolean,
+): string {
+  if (isUploading) {
+    return "Analyzing dataset files...";
+  }
+
+  if (selectedFiles.length === 0) {
+    return "Select one or more dataset files to start analysis.";
+  }
+
+  if (hasIncompleteSelectedShapefile(selectedFiles)) {
+    return "Selected shapefile is incomplete. You can still analyze to see the blocked-input report, or upload the full shapefile set.";
+  }
+
+  return "Ready to analyze selected files.";
+}
+
+function hasIncompleteSelectedShapefile(selectedFiles: File[]): boolean {
+  return getSelectedShapefileGroups(selectedFiles).some((group) => {
+    if (!group.hasMainFile) {
+      return false;
+    }
+
+    return REQUIRED_SHAPEFILE_EXTENSIONS.some(
+      (extension) => !group.filesByExtension[extension],
+    );
+  });
+}
 
 function buildShapefileUploadMessages(
   selectedFiles: File[],
