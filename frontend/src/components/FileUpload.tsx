@@ -158,6 +158,7 @@ function FileUpload() {
       exported_at: new Date().toISOString(),
       dataset_session_id: datasetSession.dataset_session_id,
       dataset_file_count: datasetSession.file_count,
+      upload_precheck_summary: uploadPrecheckSummary,
       readiness_summary: datasetReadinessSummary,
       export_package_summary: exportPackageReadiness
         ? buildExportPackageSummary(exportPackageReadiness)
@@ -205,6 +206,7 @@ function FileUpload() {
       allUploadResults,
       exportPackageReadiness,
       warningSummary,
+      uploadPrecheckSummary,
     });
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -239,6 +241,7 @@ function FileUpload() {
         reportQualityBadge,
         allUploadResults,
         exportPackageReadiness,
+        uploadPrecheckSummary,
       });
 
       await navigator.clipboard.writeText(summary);
@@ -560,6 +563,11 @@ function FileUpload() {
   );
   const selectedFilesSummary = buildSelectedFilesSummary(selectedFiles);
   const uploadReadinessPrecheck = buildUploadReadinessPrecheck(selectedFiles);
+  const uploadPrecheckSummary = buildUploadPrecheckSummary(
+    uploadReadinessPrecheck,
+    selectedFilesSummary,
+    selectedFiles,
+  );
   const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
   return (
@@ -2379,6 +2387,19 @@ type UploadReadinessPrecheck = {
   tone: "info" | "warning" | "success";
 };
 
+type UploadPrecheckSummary = {
+  status_label: string;
+  status_key: string;
+  message: string;
+  selected_file_count: number;
+  raster_like_count: number;
+  vector_like_count: number;
+  shapefile_component_count: number;
+  zip_package_count: number;
+  supporting_or_other_count: number;
+  selected_filenames: string[];
+};
+
 type SelectedShapefileGroup = {
   baseName: string;
   filesByExtension: Partial<Record<string, File>>;
@@ -2501,6 +2522,25 @@ function buildUploadReadinessPrecheck(
     status: "Ready to analyze",
     message: "Selected files are ready for GeoPrep AI inspection.",
     tone: "success",
+  };
+}
+
+function buildUploadPrecheckSummary(
+  precheck: UploadReadinessPrecheck,
+  selectedFilesSummary: SelectedFilesSummary,
+  selectedFiles: File[],
+): UploadPrecheckSummary {
+  return {
+    status_label: precheck.status,
+    status_key: sanitizeFilenamePart(precheck.status),
+    message: precheck.message,
+    selected_file_count: selectedFiles.length,
+    raster_like_count: selectedFilesSummary.rasterLike,
+    vector_like_count: selectedFilesSummary.vectorLike,
+    shapefile_component_count: selectedFilesSummary.shapefileComponents,
+    zip_package_count: selectedFilesSummary.zipPackages,
+    supporting_or_other_count: selectedFilesSummary.supportingOther,
+    selected_filenames: selectedFiles.map((file) => file.name),
   };
 }
 
@@ -4196,6 +4236,7 @@ type PlainTextReportSummaryInput = {
   reportQualityBadge: ReportQualityBadge | null;
   allUploadResults: UploadResponse[];
   exportPackageReadiness: ExportPackageReadiness | null;
+  uploadPrecheckSummary: UploadPrecheckSummary;
 };
 
 function buildPlainTextReportSummary({
@@ -4204,6 +4245,7 @@ function buildPlainTextReportSummary({
   reportQualityBadge,
   allUploadResults,
   exportPackageReadiness,
+  uploadPrecheckSummary,
 }: PlainTextReportSummaryInput): string {
   return [
     "GeoPrep AI Dataset Summary",
@@ -4215,6 +4257,9 @@ function buildPlainTextReportSummary({
     `Readiness: ${formatPlainTextValue(datasetReadinessSummary.readiness_score)}/100`,
     `Composition: ${formatReportPreviewComposition(datasetReadinessSummary)}`,
     `Source types: ${formatSourceTypeSummary(allUploadResults)}`,
+    `Upload precheck: ${formatUploadPrecheckPlainTextSummary(
+      uploadPrecheckSummary,
+    )}`,
     `Export package: ${formatExportPackagePlainTextSummary(
       exportPackageReadiness,
     )}`,
@@ -4237,6 +4282,14 @@ function buildPlainTextReportSummary({
       "No immediate dataset-level actions required.",
     ),
   ].join("\n");
+}
+
+function formatUploadPrecheckPlainTextSummary(
+  summary: UploadPrecheckSummary,
+): string {
+  return `${formatPlainTextValue(summary.status_label)} - ${formatPlainTextValue(
+    summary.message,
+  )}`;
 }
 
 function buildReportQualityBadge(
@@ -4695,6 +4748,7 @@ type MarkdownReportInput = {
   allUploadResults: UploadResponse[];
   exportPackageReadiness: ExportPackageReadiness | null;
   warningSummary: WarningSummary;
+  uploadPrecheckSummary: UploadPrecheckSummary;
 };
 
 function buildMarkdownReport({
@@ -4704,6 +4758,7 @@ function buildMarkdownReport({
   allUploadResults,
   exportPackageReadiness,
   warningSummary,
+  uploadPrecheckSummary,
 }: MarkdownReportInput): string {
   const crsSummary = datasetReadinessSummary.crs_summary;
   const crsResolutionGuidanceSummary =
@@ -4725,6 +4780,16 @@ function buildMarkdownReport({
     `- Exported at: ${formatMarkdownValue(new Date().toISOString())}`,
     `- Dataset session ID: ${formatMarkdownValue(datasetSession.dataset_session_id)}`,
     `- Dataset file count: ${formatMarkdownValue(datasetSession.file_count)}`,
+    "",
+    "## Upload Readiness Precheck",
+    `- Status: ${formatMarkdownValue(uploadPrecheckSummary.status_label)}`,
+    `- Message: ${formatMarkdownValue(uploadPrecheckSummary.message)}`,
+    `- Selected files: ${formatMarkdownValue(uploadPrecheckSummary.selected_file_count)}`,
+    `- Raster-like: ${formatMarkdownValue(uploadPrecheckSummary.raster_like_count)}`,
+    `- Vector-like: ${formatMarkdownValue(uploadPrecheckSummary.vector_like_count)}`,
+    `- Shapefile components: ${formatMarkdownValue(uploadPrecheckSummary.shapefile_component_count)}`,
+    `- ZIP packages: ${formatMarkdownValue(uploadPrecheckSummary.zip_package_count)}`,
+    `- Supporting/other: ${formatMarkdownValue(uploadPrecheckSummary.supporting_or_other_count)}`,
     "",
     "## Dataset Readiness Summary",
     `- Status: ${formatMarkdownValue(datasetReadinessSummary.status)}`,
