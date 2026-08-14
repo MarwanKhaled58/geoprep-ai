@@ -162,6 +162,7 @@ function FileUpload() {
       export_package_summary: exportPackageReadiness
         ? buildExportPackageSummary(exportPackageReadiness)
         : null,
+      warning_summary: buildWarningSummaryExport(warningSummary),
       uploaded_files: allUploadResults.map((result) => ({
         original_filename: result.original_filename,
         saved_filename: result.saved_filename,
@@ -203,6 +204,7 @@ function FileUpload() {
       correctedValidationSummary,
       allUploadResults,
       exportPackageReadiness,
+      warningSummary,
     });
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -3411,6 +3413,7 @@ type WarningActionSummary = {
   code: string;
   recommendedAction: string;
   affectedFileCount: number;
+  category: string;
 };
 
 type WarningSummary = {
@@ -3476,6 +3479,7 @@ function buildWarningSummary(results: UploadResponse[]): WarningSummary {
         code,
         recommendedAction,
         affectedFileCount: warningActionFiles.get(warningActionKey)?.size ?? 1,
+        category: getWarningImpactCategory(severity),
       });
     });
   });
@@ -3497,6 +3501,18 @@ function buildWarningSummary(results: UploadResponse[]): WarningSummary {
   };
 }
 
+function getWarningImpactCategory(severity: string): string {
+  if (severity === "error") {
+    return "Blocking";
+  }
+
+  if (severity === "warning") {
+    return "Needs review";
+  }
+
+  return "Informational";
+}
+
 function buildWarningImpactMessage(
   blockingWarnings: number,
   warningCodes: string[],
@@ -3510,6 +3526,70 @@ function buildWarningImpactMessage(
   }
 
   return "Warnings do not block preparation, but should be reviewed before model training.";
+}
+
+type WarningSummaryExport = {
+  total_warnings: number;
+  files_with_warnings: number;
+  blocking_warnings: number;
+  review_warnings: number;
+  informational_warnings: number;
+  impact_message: string;
+  warning_actions: Array<{
+    code: string;
+    recommended_action: string;
+    affected_file_count: number;
+    category: string;
+  }>;
+};
+
+function buildWarningSummaryExport(
+  warningSummary: WarningSummary,
+): WarningSummaryExport {
+  return {
+    total_warnings: warningSummary.totalWarnings,
+    files_with_warnings: warningSummary.filesWithWarnings,
+    blocking_warnings: warningSummary.blockingWarnings,
+    review_warnings: warningSummary.reviewWarnings,
+    informational_warnings: warningSummary.informationalWarnings,
+    impact_message: warningSummary.impactMessage,
+    warning_actions: warningSummary.warningActions.map((action) => ({
+      code: action.code,
+      recommended_action: action.recommendedAction,
+      affected_file_count: action.affectedFileCount,
+      category: action.category,
+    })),
+  };
+}
+
+function formatWarningImpactMarkdown(warningSummary: WarningSummary): string {
+  return [
+    "## Warning Impact",
+    `- Blocking warnings: ${formatMarkdownValue(warningSummary.blockingWarnings)}`,
+    `- Review warnings: ${formatMarkdownValue(warningSummary.reviewWarnings)}`,
+    `- Informational warnings: ${formatMarkdownValue(
+      warningSummary.informationalWarnings,
+    )}`,
+    `- Impact: ${formatMarkdownValue(warningSummary.impactMessage)}`,
+    "",
+    "### Warning Actions",
+    formatWarningActionsMarkdown(warningSummary.warningActions),
+  ].join("\n");
+}
+
+function formatWarningActionsMarkdown(actions: WarningActionSummary[]): string {
+  if (actions.length === 0) {
+    return "- No warning actions required.";
+  }
+
+  return actions
+    .map(
+      (action) =>
+        `- ${formatMarkdownValue(action.code)}: ${formatMarkdownValue(
+          action.recommendedAction,
+        )} (${formatMarkdownValue(action.affectedFileCount)} affected file(s))`,
+    )
+    .join("\n");
 }
 
 function getWarningSummaryFilename(result: UploadResponse): string {
@@ -4285,6 +4365,7 @@ type MarkdownReportInput = {
   correctedValidationSummary: CorrectedValidationSummary | null;
   allUploadResults: UploadResponse[];
   exportPackageReadiness: ExportPackageReadiness | null;
+  warningSummary: WarningSummary;
 };
 
 function buildMarkdownReport({
@@ -4293,6 +4374,7 @@ function buildMarkdownReport({
   correctedValidationSummary,
   allUploadResults,
   exportPackageReadiness,
+  warningSummary,
 }: MarkdownReportInput): string {
   const crsSummary = datasetReadinessSummary.crs_summary;
   const crsResolutionGuidanceSummary =
@@ -4335,6 +4417,8 @@ function buildMarkdownReport({
       datasetReadinessSummary.recommended_actions,
       "No immediate dataset-level actions required.",
     ),
+    "",
+    formatWarningImpactMarkdown(warningSummary),
     "",
     "## Corrected Re-upload Validation",
   ];
