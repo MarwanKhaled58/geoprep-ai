@@ -668,35 +668,50 @@ function FileUpload() {
           </div>
 
           <div className="report-main" ref={datasetSummaryRef}>
-            <div className="score-box large-score">
-              <span className="score-number">
-                {datasetReadinessSummary.readiness_score}
-              </span>
-              <span className="score-total">/100</span>
-            </div>
+            <p className="report-summary">{datasetReadinessSummary.summary}</p>
 
-            <div>
-              <p className="report-summary">
-                {datasetReadinessSummary.summary}
-              </p>
+            <div className="readiness-summary-grid">
+              <div className="readiness-summary-card readiness-score-card">
+                <span className="readiness-summary-label">Readiness</span>
+                <span className="readiness-summary-score">
+                  {datasetReadinessSummary.readiness_score}
+                  <span>/100</span>
+                </span>
+              </div>
 
-              <div className="info-grid compact-grid">
-                <InfoItem
-                  label="Raster files"
-                  value={String(datasetReadinessSummary.raster_count)}
-                />
-                <InfoItem
-                  label="Vector files"
-                  value={String(datasetReadinessSummary.vector_count)}
-                />
-                <InfoItem
-                  label="Supporting files"
-                  value={String(datasetReadinessSummary.supporting_file_count)}
-                />
-                <InfoItem
-                  label="Unsupported files"
-                  value={String(datasetReadinessSummary.unsupported_file_count)}
-                />
+              <div className="readiness-summary-card">
+                <span className="readiness-summary-label">Status</span>
+                <span className="readiness-summary-value">
+                  {datasetReadinessSummary.status}
+                </span>
+              </div>
+
+              <div className="readiness-summary-card">
+                <span className="readiness-summary-label">Raster</span>
+                <span className="readiness-summary-value">
+                  {datasetReadinessSummary.raster_count}
+                </span>
+              </div>
+
+              <div className="readiness-summary-card">
+                <span className="readiness-summary-label">Vector</span>
+                <span className="readiness-summary-value">
+                  {datasetReadinessSummary.vector_count}
+                </span>
+              </div>
+
+              <div className="readiness-summary-card">
+                <span className="readiness-summary-label">Supporting</span>
+                <span className="readiness-summary-value">
+                  {datasetReadinessSummary.supporting_file_count}
+                </span>
+              </div>
+
+              <div className="readiness-summary-card">
+                <span className="readiness-summary-label">Unsupported</span>
+                <span className="readiness-summary-value">
+                  {datasetReadinessSummary.unsupported_file_count}
+                </span>
               </div>
             </div>
           </div>
