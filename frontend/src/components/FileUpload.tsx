@@ -644,8 +644,9 @@ function FileUpload() {
             <InfoItem
               label="Dataset status"
               value={
-                batchResult.dataset_session.readiness_summary?.status ??
-                "unknown"
+                formatStatusLabel(
+                  batchResult.dataset_session.readiness_summary?.status,
+                )
               }
             />
           </div>
@@ -663,7 +664,7 @@ function FileUpload() {
             <span
               className={`status-pill status-${datasetReadinessSummary.status}`}
             >
-              {datasetReadinessSummary.status}
+              {formatStatusLabel(datasetReadinessSummary.status)}
             </span>
           </div>
 
@@ -682,7 +683,7 @@ function FileUpload() {
               <div className="readiness-summary-card">
                 <span className="readiness-summary-label">Status</span>
                 <span className="readiness-summary-value">
-                  {datasetReadinessSummary.status}
+                  {formatStatusLabel(datasetReadinessSummary.status)}
                 </span>
               </div>
 
@@ -873,7 +874,10 @@ function FileUpload() {
             </div>
 
             <div className="info-grid compact-grid report-preview-grid">
-              <InfoItem label="Status" value={datasetReadinessSummary.status} />
+              <InfoItem
+                label="Status"
+                value={formatStatusLabel(datasetReadinessSummary.status)}
+              />
               <InfoItem
                 label="Readiness"
                 value={`${datasetReadinessSummary.readiness_score}/100`}
@@ -1081,7 +1085,7 @@ function FileUpload() {
                 </div>
 
                 <span className={`status-pill status-${crsSummary.status}`}>
-                  {crsSummary.status}
+                  {formatStatusLabel(crsSummary.status)}
                 </span>
               </div>
 
@@ -1144,6 +1148,11 @@ function FileUpload() {
                     ))}
                   </ul>
                 </>
+              )}
+              {crsSummary.crs_groups.length === 0 && (
+                <p className="empty-filter-message">
+                  {getCrsGroupsEmptyText(crsSummary.status)}
+                </p>
               )}
             </CollapsibleSection>
           )}
@@ -1236,6 +1245,13 @@ function FileUpload() {
                   </ul>
                 </>
               )}
+              {crsResolutionGuidanceSummary.file_guidance.length === 0 && (
+                <p className="empty-filter-message">
+                  {getCrsGuidanceEmptyText(
+                    crsResolutionGuidanceSummary.status,
+                  )}
+                </p>
+              )}
             </CollapsibleSection>
           )}
 
@@ -1313,6 +1329,14 @@ function FileUpload() {
                   </ul>
                 </>
               )}
+              {crsCorrectionInstructionSummary.files_to_reproject.length ===
+                0 && (
+                <p className="empty-filter-message">
+                  {getFilesToReprojectEmptyText(
+                    crsCorrectionInstructionSummary.status,
+                  )}
+                </p>
+              )}
 
               {crsCorrectionInstructionSummary.files_to_confirm.length > 0 && (
                 <>
@@ -1333,17 +1357,36 @@ function FileUpload() {
                   </ul>
                 </>
               )}
+              {crsCorrectionInstructionSummary.files_to_confirm.length === 0 && (
+                <p className="empty-filter-message">
+                  {getFilesToConfirmEmptyText(
+                    crsCorrectionInstructionSummary.status,
+                  )}
+                </p>
+              )}
 
               <div className="tool-instruction-grid">
                 <ToolInstructionCard
+                  emptyText={getToolInstructionEmptyText(
+                    "ArcGIS Pro",
+                    crsCorrectionInstructionSummary.status,
+                  )}
                   title="ArcGIS Pro"
                   steps={crsCorrectionInstructionSummary.arcgis_pro_steps}
                 />
                 <ToolInstructionCard
+                  emptyText={getToolInstructionEmptyText(
+                    "QGIS",
+                    crsCorrectionInstructionSummary.status,
+                  )}
                   title="QGIS"
                   steps={crsCorrectionInstructionSummary.qgis_steps}
                 />
                 <ToolInstructionCard
+                  emptyText={getToolInstructionEmptyText(
+                    "Python / GeoPandas",
+                    crsCorrectionInstructionSummary.status,
+                  )}
                   title="Python / GeoPandas"
                   steps={crsCorrectionInstructionSummary.python_steps}
                 />
@@ -1387,7 +1430,7 @@ function FileUpload() {
                 </div>
 
                 <span className={`status-pill status-${boundsSummary.status}`}>
-                  {boundsSummary.status}
+                  {formatStatusLabel(boundsSummary.status)}
                 </span>
               </div>
 
@@ -1470,7 +1513,7 @@ function FileUpload() {
                 <span
                   className={`status-pill status-${rasterVectorRelationshipSummary.status}`}
                 >
-                  {rasterVectorRelationshipSummary.status}
+                  {formatStatusLabel(rasterVectorRelationshipSummary.status)}
                 </span>
               </div>
 
@@ -1559,7 +1602,7 @@ function FileUpload() {
                 <span
                   className={`status-pill status-${taskRecommendationSummary.status}`}
                 >
-                  {taskRecommendationSummary.status}
+                  {formatStatusLabel(taskRecommendationSummary.status)}
                 </span>
               </div>
 
@@ -1830,8 +1873,8 @@ function FileUpload() {
                           <td>
                             <strong>{result.original_filename}</strong>
                           </td>
-                          <td>{result.file_category}</td>
-                          <td>{gisType}</td>
+                          <td>{formatStatusLabel(result.file_category)}</td>
+                          <td>{formatStatusLabel(gisType)}</td>
                           <td>
                             {readinessScore !== null
                               ? `${readinessScore}/100`
@@ -1841,7 +1884,7 @@ function FileUpload() {
                             <span
                               className={`status-pill status-${readinessStatus}`}
                             >
-                              {readinessStatus}
+                              {formatStatusLabel(readinessStatus)}
                             </span>
                           </td>
                           <td>{warningCount}</td>
@@ -3396,7 +3439,7 @@ function FileReportCard({ result }: FileReportCardProps) {
 
         {readinessReport && (
           <span className={`status-pill status-${readinessReport.status}`}>
-            {readinessReport.status}
+            {formatStatusLabel(readinessReport.status)}
           </span>
         )}
       </div>
@@ -3515,11 +3558,65 @@ function sanitizeFilenamePart(value: unknown): string {
 }
 
 function formatCodeValue(value: string): string {
-  return value.replaceAll("_", " ");
+  return formatStatusLabel(value);
 }
 
 function formatCodeList(values: string[]): string {
   return values.map((value) => formatCodeValue(value)).join(", ");
+}
+
+function formatStatusLabel(value: string | null | undefined): string {
+  if (!value) {
+    return "Not available";
+  }
+
+  const statusLabels: Record<string, string> = {
+    blocked_input: "Blocked by upload input",
+    blocked_by_input: "Blocked by upload input",
+    needs_crs_review: "Needs CRS review",
+    mixed_crs: "Mixed CRS",
+    missing_crs: "Missing CRS",
+    unresolved_crs: "Unresolved CRS",
+    consistent_crs: "CRS consistent",
+    raster_only: "Raster-only workflow",
+    vector_only: "Vector-only workflow",
+    single_spatial_file: "Single spatial file",
+    overlapping_bounds: "Bounds overlap",
+    no_spatial_overlap: "No spatial overlap",
+    candidate_geoai_dataset: "Candidate GeoAI dataset",
+    no_raster_vector_pair: "No raster-vector pair",
+    blocked_by_crs_review: "Blocked by CRS review",
+    blocked_by_bounds_review: "Blocked by bounds review",
+    blocked_by_relationship_review: "Blocked by relationship review",
+    task_candidate: "Task candidate",
+    fix_upload_input: "Fix upload input",
+    plan_blocked: "Plan blocked",
+    plan_needs_review: "Plan needs review",
+    plan_ready: "Plan ready",
+    inspection_failed: "Inspection failed",
+    ready: "Ready",
+    passed: "Passed",
+    blocked: "Blocked",
+    required: "Required",
+    planned: "Planned",
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    raster: "Raster",
+    vector: "Vector",
+    supporting: "Supporting",
+    unsupported: "Unsupported",
+    "non-gis": "Non-GIS",
+    unknown: "Unknown",
+  };
+
+  return (
+    statusLabels[value] ??
+    value
+      .replaceAll("_", " ")
+      .replaceAll("-", " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
 }
 
 function formatReportPreviewComposition(
@@ -4689,18 +4786,71 @@ function getFirstActionableStepTitle(
   return actionableStep?.title ?? steps[0]?.title ?? "Not available";
 }
 
+function isBlockedByInputStatus(status: string | undefined): boolean {
+  return status === "blocked_by_input" || status === "blocked_input";
+}
+
+function getCrsGroupsEmptyText(status: string): string {
+  if (isBlockedByInputStatus(status)) {
+    return "No CRS groups are available until upload input issues are fixed.";
+  }
+
+  return "No CRS groups are needed for this dataset right now.";
+}
+
+function getCrsGuidanceEmptyText(status: string): string {
+  if (isBlockedByInputStatus(status)) {
+    return "No per-file CRS guidance is available until files can be inspected.";
+  }
+
+  return "No per-file CRS guidance is needed for the current dataset.";
+}
+
+function getFilesToReprojectEmptyText(status: string): string {
+  if (isBlockedByInputStatus(status)) {
+    return "No reprojection list is available until upload input issues are fixed.";
+  }
+
+  return "No files currently need reprojection.";
+}
+
+function getFilesToConfirmEmptyText(status: string): string {
+  if (isBlockedByInputStatus(status)) {
+    return "No CRS confirmation list is available until files can be inspected.";
+  }
+
+  return "No files currently need CRS confirmation.";
+}
+
+function getToolInstructionEmptyText(title: string, status: string): string {
+  if (isBlockedByInputStatus(status)) {
+    return `${title} CRS correction steps are not available until upload input issues are fixed.`;
+  }
+
+  if (title === "Python / GeoPandas") {
+    return "No Python CRS correction steps are needed for this dataset.";
+  }
+
+  return `No ${title} CRS correction steps are needed for this dataset.`;
+}
+
 type ToolInstructionCardProps = {
+  emptyText: string;
   title: string;
   steps: string[];
 };
 
-function ToolInstructionCard({ title, steps }: ToolInstructionCardProps) {
+function ToolInstructionCard({
+  emptyText,
+  title,
+  steps,
+}: ToolInstructionCardProps) {
   return (
     <div className="tool-instruction-card">
       <h5>{title}</h5>
 
       {steps.length === 0 ? (
-        <p className="small-muted">No instructions available.</p>
+        <p className="small-muted">{emptyText}</p>
       ) : (
         <ol className="instruction-list">
           {steps.map((step, index) => (
