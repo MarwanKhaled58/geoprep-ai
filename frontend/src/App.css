@@ -45,6 +45,41 @@
   line-height: 1.45;
 }
 
+.upload-precheck-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.upload-precheck-card strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.upload-precheck-info {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.upload-precheck-warning {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.upload-precheck-success {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
 .demo-guidance-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -204,6 +239,24 @@
 .selected-file p {
   margin: 0;
   color: #334155;
+}
+
+.selected-file-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.selected-file-precheck-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.selected-file-precheck-grid .info-item {
+  padding: 8px;
 }
 
 .selected-file ul {
@@ -1568,6 +1621,10 @@
   }
 
   .readiness-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .selected-file-precheck-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

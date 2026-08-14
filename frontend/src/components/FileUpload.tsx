@@ -558,6 +558,8 @@ function FileUpload() {
     selectedFiles,
     isUploading,
   );
+  const selectedFilesSummary = buildSelectedFilesSummary(selectedFiles);
+  const uploadReadinessPrecheck = buildUploadReadinessPrecheck(selectedFiles);
   const blockedInputFiles = getBlockedInputFiles(allUploadResults);
 
   return (
@@ -671,11 +673,38 @@ function FileUpload() {
           <p className="analyze-guidance-text">{analyzeGuidanceText}</p>
         </div>
 
+        <UploadReadinessPrecheckCard precheck={uploadReadinessPrecheck} />
+
         {selectedFiles.length > 0 && (
           <div className="selected-file">
-            <p>
-              Selected files: <strong>{selectedFiles.length}</strong>
-            </p>
+            <div className="selected-file-header">
+              <p>
+                Selected files: <strong>{selectedFiles.length}</strong>
+              </p>
+            </div>
+
+            <div className="selected-file-precheck-grid">
+              <InfoItem
+                label="Raster-like"
+                value={String(selectedFilesSummary.rasterLike)}
+              />
+              <InfoItem
+                label="Vector-like"
+                value={String(selectedFilesSummary.vectorLike)}
+              />
+              <InfoItem
+                label="Shapefile components"
+                value={String(selectedFilesSummary.shapefileComponents)}
+              />
+              <InfoItem
+                label="ZIP packages"
+                value={String(selectedFilesSummary.zipPackages)}
+              />
+              <InfoItem
+                label="Supporting/other"
+                value={String(selectedFilesSummary.supportingOther)}
+              />
+            </div>
 
             <ul>
               {selectedFiles.map((file) => (
@@ -2336,6 +2365,20 @@ type ShapefileHelperMessage = {
   tone: "info" | "warning" | "success";
 };
 
+type SelectedFilesSummary = {
+  rasterLike: number;
+  vectorLike: number;
+  shapefileComponents: number;
+  zipPackages: number;
+  supportingOther: number;
+};
+
+type UploadReadinessPrecheck = {
+  status: string;
+  message: string;
+  tone: "info" | "warning" | "success";
+};
+
 type SelectedShapefileGroup = {
   baseName: string;
   filesByExtension: Partial<Record<string, File>>;
@@ -2345,6 +2388,121 @@ type SelectedShapefileGroup = {
 const SHAPEFILE_COMPONENT_EXTENSIONS = [".shp", ".shx", ".dbf", ".prj"];
 const REQUIRED_SHAPEFILE_EXTENSIONS = [".shx", ".dbf"];
 const ZIP_EXTENSION = ".zip";
+const RASTER_LIKE_EXTENSIONS = [
+  ".tif",
+  ".tiff",
+  ".img",
+  ".jp2",
+  ".png",
+  ".jpg",
+  ".jpeg",
+];
+const VECTOR_LIKE_EXTENSIONS = [
+  ".geojson",
+  ".json",
+  ".gpkg",
+  ".kml",
+  ".kmz",
+  ".gml",
+];
+
+function UploadReadinessPrecheckCard({
+  precheck,
+}: {
+  precheck: UploadReadinessPrecheck;
+}) {
+  return (
+    <div className={`upload-precheck-card upload-precheck-${precheck.tone}`}>
+      <strong>{precheck.status}</strong>
+      <span>{precheck.message}</span>
+    </div>
+  );
+}
+
+function buildSelectedFilesSummary(
+  selectedFiles: File[],
+): SelectedFilesSummary {
+  return selectedFiles.reduce<SelectedFilesSummary>(
+    (summary, file) => {
+      const extension = getFileExtension(file.name);
+
+      if (SHAPEFILE_COMPONENT_EXTENSIONS.includes(extension)) {
+        summary.shapefileComponents += 1;
+        return summary;
+      }
+
+      if (extension === ZIP_EXTENSION) {
+        summary.zipPackages += 1;
+        return summary;
+      }
+
+      if (RASTER_LIKE_EXTENSIONS.includes(extension)) {
+        summary.rasterLike += 1;
+        return summary;
+      }
+
+      if (VECTOR_LIKE_EXTENSIONS.includes(extension)) {
+        summary.vectorLike += 1;
+        return summary;
+      }
+
+      summary.supportingOther += 1;
+      return summary;
+    },
+    {
+      rasterLike: 0,
+      vectorLike: 0,
+      shapefileComponents: 0,
+      zipPackages: 0,
+      supportingOther: 0,
+    },
+  );
+}
+
+function buildUploadReadinessPrecheck(
+  selectedFiles: File[],
+): UploadReadinessPrecheck {
+  if (selectedFiles.length === 0) {
+    return {
+      status: "Waiting for files",
+      message: "Select one or more dataset files to start analysis.",
+      tone: "info",
+    };
+  }
+
+  if (hasIncompleteSelectedShapefile(selectedFiles)) {
+    return {
+      status: "Precheck warning",
+      message:
+        "One or more shapefile uploads appear incomplete. You can still analyze to generate a blocked-input report, or upload the complete shapefile set.",
+      tone: "warning",
+    };
+  }
+
+  if (selectedFiles.some((file) => getFileExtension(file.name) === ZIP_EXTENSION)) {
+    return {
+      status: "ZIP package selected",
+      message:
+        "GeoPrep AI will inspect the ZIP after upload and detect shapefile packages if present.",
+      tone: "info",
+    };
+  }
+
+  if (hasCompleteSelectedShapefileGroup(selectedFiles)) {
+    return {
+      status: "Shapefile group detected",
+      message:
+        "Required shapefile sidecars are selected. GeoPrep AI will inspect the shapefile as one logical vector layer.",
+      tone: "success",
+    };
+  }
+
+  return {
+    status: "Ready to analyze",
+    message: "Selected files are ready for GeoPrep AI inspection.",
+    tone: "success",
+  };
+}
 
 function getAnalyzeGuidanceText(
   selectedFiles: File[],
@@ -2373,6 +2531,18 @@ function hasIncompleteSelectedShapefile(selectedFiles: File[]): boolean {
 
     return REQUIRED_SHAPEFILE_EXTENSIONS.some(
       (extension) => !group.filesByExtension[extension],
+    );
+  });
+}
+
+function hasCompleteSelectedShapefileGroup(selectedFiles: File[]): boolean {
+  return getSelectedShapefileGroups(selectedFiles).some((group) => {
+    if (!group.hasMainFile) {
+      return false;
+    }
+
+    return REQUIRED_SHAPEFILE_EXTENSIONS.every(
+      (extension) => group.filesByExtension[extension],
     );
   });
 }
