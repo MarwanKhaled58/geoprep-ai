@@ -1,4 +1,4 @@
-from app.core.config import APP_NAME, APP_VERSION
+from app.core.config import APP_VERSION
 
 
 def get_health_status() -> dict:
@@ -7,8 +7,7 @@ def get_health_status() -> dict:
     """
 
     return {
-        "status": "success",
-        "message": "GeoPrep AI backend is running",
-        "app_name": APP_NAME,
+        "status": "ok",
+        "service": "GeoPrep AI Backend",
         "version": APP_VERSION,
     }

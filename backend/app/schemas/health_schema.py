@@ -7,6 +7,5 @@ class HealthResponse(BaseModel):
     """
 
     status: str
-    message: str
-    app_name: str
+    service: str
     version: str

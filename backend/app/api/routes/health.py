@@ -4,11 +4,11 @@ from app.schemas.health_schema import HealthResponse
 from app.services.health_service import get_health_status
 
 router = APIRouter(
-    prefix="/api",
     tags=["Health"],
 )
 
 
+@router.get("/api/health", response_model=HealthResponse)
 @router.get("/health", response_model=HealthResponse)
 def health_check() -> HealthResponse:
     """
