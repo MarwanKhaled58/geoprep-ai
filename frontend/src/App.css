@@ -154,6 +154,7 @@
   font-size: 12px;
   font-weight: 900;
   line-height: 1;
+  user-select: none;
 }
 
 .test-scenario-list {
@@ -161,14 +162,14 @@
   gap: 10px;
 }
 
-.test-scenario-list li {
+.test-scenario-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: start;
 }
 
-.test-scenario-list strong {
+.test-scenario-item strong {
   display: block;
   margin-top: 2px;
   color: #475569;
@@ -206,10 +207,35 @@
   display: grid;
   gap: 8px;
   margin: 0;
-  padding-left: 22px;
+  padding: 0;
   color: #334155;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.final-test-checklist-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.final-test-checklist-number {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  user-select: none;
 }
 
 .mvp-test-guide-copy-button {
@@ -1644,7 +1670,8 @@
     grid-template-columns: 1fr;
   }
 
-  .test-scenario-list li {
+  .test-scenario-item,
+  .final-test-checklist-item {
     grid-template-columns: 1fr;
   }
 

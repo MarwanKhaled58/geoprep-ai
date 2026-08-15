@@ -633,7 +633,9 @@ function FileUpload() {
                 "Review export/package readiness",
               ].map((step, index) => (
                 <li key={step}>
-                  <span className="workflow-step-number">{index + 1}</span>
+                  <span className="workflow-step-number" aria-hidden="true">
+                    {index + 1}
+                  </span>
                   <span>{step}</span>
                 </li>
               ))}
@@ -643,45 +645,45 @@ function FileUpload() {
           <details className="test-scenarios-panel">
             <summary>MVP Test Scenarios</summary>
 
-            <ul className="test-scenario-list">
-              <li>
+            <div className="test-scenario-list">
+              <div className="test-scenario-item">
                 <span className="scenario-tag">Raster</span>
                 <span>
                   Upload a raster only file to test imagery-only readiness.
                   <strong> Expected: Raster-only workflow / needs review.</strong>
                 </span>
-              </li>
-              <li>
+              </div>
+              <div className="test-scenario-item">
                 <span className="scenario-tag">CRS</span>
                 <span>
                   Upload raster + vector files to test CRS and raster-vector
                   relationship checks.
                   <strong> Expected: CRS, bounds, and raster-vector checks.</strong>
                 </span>
-              </li>
-              <li>
+              </div>
+              <div className="test-scenario-item">
                 <span className="scenario-tag">Blocked</span>
                 <span>
                   Upload an incomplete shapefile to test blocked input handling.
                   <strong> Expected: Blocked by upload input.</strong>
                 </span>
-              </li>
-              <li>
+              </div>
+              <div className="test-scenario-item">
                 <span className="scenario-tag">ZIP</span>
                 <span>
                   Upload a complete shapefile set or ZIP package to test
                   shapefile package support.
                   <strong> Expected: Shapefile package support.</strong>
                 </span>
-              </li>
-              <li>
+              </div>
+              <div className="test-scenario-item">
                 <span className="scenario-tag">Export</span>
                 <span>
                   Export JSON/Markdown reports to verify handoff outputs.
                   <strong> Expected: JSON/Markdown handoff outputs.</strong>
                 </span>
-              </li>
-            </ul>
+              </div>
+            </div>
           </details>
 
           <details className="final-test-checklist-panel">
@@ -693,11 +695,19 @@ function FileUpload() {
                 handoff.
               </p>
 
-              <ol className="final-test-checklist">
-                {MVP_TEST_CHECKLIST_ITEMS.map((item) => (
-                  <li key={item}>{item}</li>
+              <div className="final-test-checklist">
+                {MVP_TEST_CHECKLIST_ITEMS.map((item, index) => (
+                  <div className="final-test-checklist-item" key={item}>
+                    <span
+                      className="final-test-checklist-number"
+                      aria-hidden="true"
+                    >
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </div>
                 ))}
-              </ol>
+              </div>
 
               <button
                 type="button"
