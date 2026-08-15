@@ -35,6 +35,25 @@ Use this checklist to validate the main MVP workflow:
 9. Copy Report Summary.
 10. Review Export Package Readiness and Package Preview.
 
+## Final Regression Test Log
+
+Use this table during final MVP regression testing.
+
+| Test | Expected Result | Status | Notes |
+| --- | --- | --- | --- |
+| App opens successfully. | Frontend loads and upload guidance appears. |  |  |
+| Backend health/API is reachable. | Backend responds from `http://127.0.0.1:8000`. |  |  |
+| Raster-only upload works. | Raster-only readiness report is generated. |  |  |
+| Incomplete shapefile upload shows blocked-input report. | Report explains missing shapefile sidecars and next action. |  |  |
+| Raster + vector upload checks CRS/bounds/relationship. | Dataset report includes CRS, bounds, and raster-vector relationship sections. |  |  |
+| Warning Summary and Warning Impact display correctly. | Warning counts, impact, and warning actions are visible. |  |  |
+| Report Navigation works. | Navigation buttons scroll to the expected report sections. |  |  |
+| Search report works. | Search results find matching report sections. |  |  |
+| JSON export works. | JSON readiness report downloads successfully. |  |  |
+| Markdown export works. | Markdown readiness report downloads successfully. |  |  |
+| Copy Report Summary works. | Clipboard receives a concise report summary. |  |  |
+| Export Package Readiness and Package Preview display correctly. | Export readiness status, checklist, preview, and placeholder action are visible. |  |  |
+
 ## Important Shapefile Rule
 
 Shapefiles are multi-file datasets. A `.shp` file alone is incomplete.
@@ -111,3 +130,24 @@ Completed major capabilities include:
 - Copyable report summary.
 - Export package readiness and package preview.
 - In-app MVP checklist.
+
+## MVP Known Limitations
+
+- Export package generation is currently preview/placeholder only.
+- The MVP prepares and diagnoses datasets; it does not train models yet.
+- The MVP does not run inference yet.
+- The MVP does not auto-label data yet.
+- CRS normalization should still be manually confirmed for production datasets.
+- Shapefile inspection requires complete shapefile sidecars.
+- Browser testing with complete shapefile groups and complete ZIP packages should be performed with real sample datasets.
+- Large dataset performance should be tested later with production-scale data.
+
+## Future Roadmap
+
+- Real model-ready package generation.
+- Dataset history / saved sessions.
+- Advanced CRS repair workflows.
+- Model training integration.
+- Inference workflows.
+- Auto-labeling support.
+- Chat with dataset / assistant-based dataset QA.
