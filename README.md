@@ -41,18 +41,18 @@ Use this table during final MVP regression testing.
 
 | Test | Expected Result | Status | Notes |
 | --- | --- | --- | --- |
-| App opens successfully. | Frontend loads and upload guidance appears. |  |  |
-| Backend health/API is reachable. | Backend responds from `http://127.0.0.1:8000`. |  |  |
-| Raster-only upload works. | Raster-only readiness report is generated. |  |  |
-| Incomplete shapefile upload shows blocked-input report. | Report explains missing shapefile sidecars and next action. |  |  |
-| Raster + vector upload checks CRS/bounds/relationship. | Dataset report includes CRS, bounds, and raster-vector relationship sections. |  |  |
-| Warning Summary and Warning Impact display correctly. | Warning counts, impact, and warning actions are visible. |  |  |
-| Report Navigation works. | Navigation buttons scroll to the expected report sections. |  |  |
-| Search report works. | Search results find matching report sections. |  |  |
-| JSON export works. | JSON readiness report downloads successfully. |  |  |
-| Markdown export works. | Markdown readiness report downloads successfully. |  |  |
-| Copy Report Summary works. | Clipboard receives a concise report summary. |  |  |
-| Export Package Readiness and Package Preview display correctly. | Export readiness status, checklist, preview, and placeholder action are visible. |  |  |
+| App opens successfully. | Frontend loads and upload guidance appears. | Passed | Workflow, MVP scenarios, and checklist guidance appeared. |
+| Backend health/API is reachable. | Backend responds from `http://127.0.0.1:8000`. | Passed on clean backend port; verify on 8000 after restart | `/health` and `/api/health` passed on clean port `8010`; port `8000` had a stale old process during testing. |
+| Raster-only upload works. | Raster-only readiness report is generated. | Passed | Raster-only report appeared. |
+| Incomplete shapefile upload shows blocked-input report. | Report explains missing shapefile sidecars and next action. | Passed | Blocked-input report appeared with shapefile sidecar guidance. |
+| Raster + vector upload checks CRS/bounds/relationship. | Dataset report includes CRS, bounds, and raster-vector relationship sections. | Passed for blocked-input mixed raster + incomplete shapefile case | Mixed raster + incomplete shapefile flow produced the expected blocked-input report. |
+| Warning Summary and Warning Impact display correctly. | Warning counts, impact, and warning actions are visible. | Passed | Warning Summary and Warning Impact displayed correctly. |
+| Report Navigation works. | Navigation buttons scroll to the expected report sections. | Pending final manual click-through | Run one final navigation click-through after clearing port `8000`. |
+| Search report works. | Search results find matching report sections. | Pending final manual search check | Run one final search check after clearing port `8000`. |
+| JSON export works. | JSON readiness report downloads successfully. | Passed | JSON report export completed. |
+| Markdown export works. | Markdown readiness report downloads successfully. | Passed | Markdown report export completed. |
+| Copy Report Summary works. | Clipboard receives a concise report summary. | Passed | Copy summary completed. |
+| Export Package Readiness and Package Preview display correctly. | Export readiness status, checklist, preview, and placeholder action are visible. | Passed | Export readiness and package preview displayed. |
 
 ## Important Shapefile Rule
 
@@ -115,6 +115,38 @@ http://localhost:5173
 ```
 
 If the frontend shows `NetworkError`, confirm the backend is running on `http://127.0.0.1:8000`.
+
+### Port 8000 Troubleshooting
+
+The backend should normally run at `http://127.0.0.1:8000`.
+
+If `/health` returns old branding or `/api/health` returns `404`, an old backend process may still be running.
+
+Check port `8000`:
+
+```powershell
+netstat -ano | findstr :8000
+```
+
+Kill the `LISTENING` PID:
+
+```powershell
+taskkill /PID <PID> /F
+```
+
+If Windows shows a stale listener with no matching process, restart Windows.
+
+After restart, run the backend from the `backend` folder:
+
+```powershell
+python -m uvicorn app.main:app --reload
+```
+
+Expected health response:
+
+```json
+{"status":"ok","service":"GeoPrep AI Backend","version":"0.1.0"}
+```
 
 ## Development Status
 
